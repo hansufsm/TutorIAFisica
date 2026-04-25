@@ -26,18 +26,17 @@ class PhysicsState:
         self.code_snippet = ""
         self.is_valid = True
         self.mapa_mental_markdown = ""
-        # Campos de Alinhamento UFSM
         self.ufsm_alignment = None 
+        # Campos de Avaliação
+        self.quiz_question = ""
+        self.quiz_correct_answer = ""
 
     def check_ufsm_syllabus(self):
-        """Busca match no ementário da UFSM baseado nos conceitos identificados."""
         try:
             with open('../data/ufsm_syllabus.json', 'r', encoding='utf-8') as f:
                 syllabus = json.load(f)
-            
             for disciplina in syllabus['disciplinas']:
                 for tema in disciplina['temas']:
-                    # Busca simples por interseção de palavras ou conceitos
                     for conceito in self.concepts:
                         if tema.lower() in conceito.lower() or conceito.lower() in tema.lower():
                             self.ufsm_alignment = disciplina
@@ -52,10 +51,10 @@ class TutorIAAgent:
 
     def ask_gemini(self, prompt: str, teacher_notes: str = "") -> str:
         if not model:
-            return "ERRO: Gemini API Key não configurada."
+            return "ERRO: API Key não configurada."
         try:
             context_prefix = f"CONTEXTO DO PROFESSOR: {teacher_notes}\n\n" if teacher_notes else ""
-            full_prompt = f"{self.system_instruction}\n\n{context_prefix}Entrada do Aluno: {prompt}"
+            full_prompt = f"{self.system_instruction}\n\n{context_prefix}Entrada: {prompt}"
             response = model.generate_content(full_prompt)
             return response.text
         except Exception as e:
@@ -71,7 +70,6 @@ class SocraticInterpreter(TutorIAAgent):
             state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
         else:
             state.concepts = ["Física"]
-        # Aciona o check institucional
         state.check_ufsm_syllabus()
         return state
 
@@ -92,16 +90,37 @@ class InteractiveVisualizer(TutorIAAgent):
 
 class Contextualizer(TutorIAAgent):
     def process(self, state: PhysicsState) -> PhysicsState:
-        # Se houver alinhamento UFSM, injetamos isso no prompt para o Curador
         ufsm_info = ""
         if state.ufsm_alignment:
             d = state.ufsm_alignment
-            ufsm_info = f"\nALINHAMENTO UFSM DETECTADO: Esta dúvida pertence à disciplina {d['codigo']} - {d['nome']}. Bibliografia básica: {', '.join(d['bibliografia_basica'])}."
-
+            ufsm_info = f"\nALINHAMENTO UFSM: Disciplina {d['codigo']}. Bibliografia: {', '.join(d['bibliografia_basica'])}."
         instruction = f"Você é o 'Curador de Contexto'. Forneça aplicações reais e um mapa mental em Markdown. {ufsm_info}"
         self.system_instruction = instruction
         state.mapa_mental_markdown = self.ask_gemini(state.raw_input, state.teacher_notes)
         return state
+
+class Evaluator(TutorIAAgent):
+    """Novo Agente: Cria e avalia desafios para o aluno."""
+    def process(self, state: PhysicsState) -> PhysicsState:
+        print(f"[*] {self.name}: Gerando desafio formativo...")
+        instruction = (
+            "Você é o 'Avaliador Pedagógico'. Com base no problema de física discutido, "
+            "crie um pequeno DESAFIO (uma pergunta de múltipla escolha ou discursiva curta) "
+            "para testar se o aluno entendeu a lógica. Não dê a resposta agora."
+        )
+        self.system_instruction = instruction
+        state.quiz_question = self.ask_gemini(state.raw_input, state.teacher_notes)
+        return state
+
+    def evaluate_answer(self, question: str, student_answer: str) -> str:
+        """Avalia a resposta do aluno de forma socrática."""
+        instruction = (
+            "Você é o 'Avaliador Pedagógico'. O aluno respondeu ao seu desafio. "
+            "Se estiver certo, parabenize e aprofunde. Se estiver errado, não dê a resposta, "
+            "dê uma pista socrática para ele tentar novamente."
+        )
+        self.system_instruction = instruction
+        return self.ask_gemini(f"Desafio: {question}\nResposta do Aluno: {student_answer}")
 
 class PhysicsOrchestrator:
     def __init__(self):
@@ -109,6 +128,7 @@ class PhysicsOrchestrator:
         self.solver = DimensionalSolver("Matemático", "")
         self.visualizer = InteractiveVisualizer("Visualizador", "")
         self.contextualizer = Contextualizer("Curador", "")
+        self.evaluator = Evaluator("Avaliador", "")
 
     def run(self, input_data: str, teacher_notes: str = ""):
         state = PhysicsState(input_data, teacher_notes)
@@ -119,4 +139,6 @@ class PhysicsOrchestrator:
         state = self.visualizer.process(state)
         time.sleep(3)
         state = self.contextualizer.process(state)
+        time.sleep(3)
+        state = self.evaluator.process(state)
         return state

@@ -1,1 +1,6 @@
-[theme]\nprimaryColor = "#007bff"\nbackgroundColor = "#0e1117"\nsecondaryBackgroundColor = "#161b22"\ntextColor = "#c9d1d9"\nfont = "sans serif"
+[theme]
+primaryColor = "#007bff"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#31333f"
+font = "sans serif"

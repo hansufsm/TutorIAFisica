@@ -1,32 +1,24 @@
 import streamlit as st
-from core import PhysicsOrchestrator
+from core import PhysicsOrchestrator, Evaluator
 import time
 from pypdf import PdfReader
 import io
 
-# Configuração da Página
-st.set_page_config(page_title="TutorIAFisica - Mentor de Física", layout="centered", page_icon="🌌")
+# Configuração da Página para Tema Claro e Layout Largo
+st.set_page_config(page_title="TutorIAFisica - Mentor de Física", layout="wide", page_icon="🌌")
 
-# Injeção de CSS para Estilização de Agentes, Dark Mode e Selo UFSM
+# Estilização Customizada para Tema Claro
 st.markdown("""
     <style>
-    .stApp { background-color: #0e1117; }
-    .stChatMessage { border-radius: 15px; padding: 15px; margin-bottom: 10px; border: 1px solid #30363d; }
-    .katex { color: #58a6ff; font-size: 1.1em; }
-    [data-testimonial-name="Intérprete"] { border-left: 6px solid #1f77b4 !important; }
-    [data-testimonial-name="Solucionador"] { border-left: 6px solid #2ca02c !important; }
-    [data-testimonial-name="Visualizador"] { border-left: 6px solid #ff7f0e !important; }
-    [data-testimonial-name="Curador"] { border-left: 6px solid #9467bd !important; }
-    
-    .ufsm-badge {
-        background-color: #f1c40f;
-        color: #2c3e50;
-        padding: 10px;
-        border-radius: 10px;
-        border: 2px solid #f39c12;
-        margin-bottom: 15px;
-        font-weight: bold;
-    }
+    .stApp { background-color: #ffffff; color: #31333f; }
+    .agent-box { padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e6e9ef; background-color: #f8f9fa; }
+    .border-interprete { border-left: 8px solid #007bff; }
+    .border-solucionador { border-left: 8px solid #28a745; }
+    .border-visualizador { border-left: 8px solid #fd7e14; }
+    .border-curador { border-left: 8px solid #6f42c1; }
+    .border-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; }
+    .ufsm-badge { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; font-weight: bold; }
+    h1, h2, h3 { color: #1c2b46; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,78 +30,78 @@ def extract_text_from_pdf(uploaded_file):
     return text
 
 def main():
-    st.title("🌌 TutorIAFisica")
-    st.caption("Seu esquadrão de especialistas em Física | Alinhamento Institucional UFSM")
+    st.title("🌌 TutorIAFisica: Mentor Acadêmico")
+    st.markdown("---")
 
-    # Sidebar para Notas do Professor
+    # Sidebar
     with st.sidebar:
         st.header("👨‍🏫 Área do Professor")
-        uploaded_file = st.file_uploader("Carregar Notas de Aula (PDF/TXT)", type=["pdf", "txt"])
+        uploaded_file = st.file_uploader("Notas de Aula (PDF/TXT)", type=["pdf", "txt"])
         teacher_notes = ""
-        
-        if uploaded_file is not None:
+        if uploaded_file:
             if uploaded_file.type == "application/pdf":
                 teacher_notes = extract_text_from_pdf(uploaded_file)
             else:
                 teacher_notes = uploaded_file.read().decode("utf-8")
-            st.success("✅ Notas de aula carregadas!")
-
-        st.divider()
-        st.header("💡 Sistema de Agentes")
-        st.info("O esquadrão está sincronizado com o ementário oficial da UFSM.")
-
-    # Inicializa histórico de chat
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Exibe mensagens do histórico
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"], avatar=msg["avatar"]):
-            st.markdown(msg["content"])
-
-    # Input do aluno
-    if prompt := st.chat_input("Pergunte sobre mecânica, eletromagnetismo, óptica..."):
-        st.session_state.messages.append({"role": "user", "content": prompt, "avatar": "👤"})
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(prompt)
-
-        orchestrator = PhysicsOrchestrator()
+            st.success("✅ Notas carregadas!")
         
-        with st.status("Consultando o esquadrão e o ementário UFSM...", expanded=True) as status:
-            res = orchestrator.run(prompt, teacher_notes=teacher_notes)
-            status.update(label="Análise Concluída!", state="complete", expanded=False)
+        st.divider()
+        st.header("📚 Institucional")
+        st.info("Sincronizado com o Ementário UFSM (Curso 102/679).")
 
-        # 1. Alinhamento Institucional UFSM (Destaque)
+    # Área de Entrada
+    enunciado = st.text_area("Descreva o problema ou conceito de física:", height=100)
+
+    if st.button("🚀 Ativar Esquadrão"):
+        if enunciado:
+            orchestrator = PhysicsOrchestrator()
+            with st.status("O Esquadrão está analisando e preparando desafios...", expanded=True) as status:
+                res = orchestrator.run(enunciado, teacher_notes=teacher_notes)
+                st.session_state.last_result = res
+                status.update(label="Análise Concluída!", state="complete", expanded=False)
+
+    # Verifica se há resultados para exibir
+    if "last_result" in st.session_state:
+        res = st.session_state.last_result
+        
         if res.ufsm_alignment:
-            d = res.ufsm_alignment
-            st.markdown(f"""
-                <div class="ufsm-badge">
-                    🏛️ ALINHAMENTO INSTITUCIONAL UFSM<br>
-                    Disciplina: {d['codigo']} - {d['nome']} ({d['periodo']}º Período)<br>
-                    Bibliografia Básica recomendada no curso 102/679: {', '.join(d['bibliografia_basica'])}
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="ufsm-badge">🏛️ CONFORMIDADE UFSM: {res.ufsm_alignment['codigo']} - {res.ufsm_alignment['nome']}</div>""", unsafe_allow_html=True)
 
-        # Exibição das respostas dos Agentes
-        with st.chat_message("Intérprete", avatar="🧩"):
-            content = f"**Conceitos:** {', '.join(res.concepts)}\n\n{res.pergunta_socratica}"
-            st.markdown(content)
-            st.session_state.messages.append({"role": "Intérprete", "content": content, "avatar": "🧩"})
+        tab1, tab2, tab3, tab4 = st.tabs(["🧩 Diálogo Socrático", "📐 Solução Matemática", "🖼️ Visualização", "📚 Contexto UFSM"])
 
-        with st.chat_message("Solucionador", avatar="📐"):
-            st.markdown("### 📐 Passo a Passo Matemático")
+        with tab1:
+            st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True)
+            st.write(res.pergunta_socratica)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with tab2:
+            st.markdown('<div class="agent-box border-solucionador">', unsafe_allow_html=True)
             st.markdown(res.solution_steps)
-            st.session_state.messages.append({"role": "Solucionador", "content": res.solution_steps, "avatar": "📐"})
-
-        with st.chat_message("Visualizador", avatar="🖼️"):
-            st.markdown("### 🖼️ Representação Visual")
+            st.markdown('</div>', unsafe_allow_html=True)
+        with tab3:
+            st.markdown('<div class="agent-box border-visualizador">', unsafe_allow_html=True)
             st.code(res.code_snippet, language="python")
-            st.session_state.messages.append({"role": "Visualizador", "content": "Visualização gerada.", "avatar": "🖼️"})
-
-        with st.chat_message("Curador", avatar="📚"):
-            st.markdown("### 📚 Contexto Acadêmico")
+            st.markdown('</div>', unsafe_allow_html=True)
+        with tab4:
+            st.markdown('<div class="agent-box border-curador">', unsafe_allow_html=True)
             st.markdown(res.mapa_mental_markdown)
-            st.session_state.messages.append({"role": "Curador", "content": res.mapa_mental_markdown, "avatar": "📚"})
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # SEÇÃO DE DESAFIO (Avaliação Formativa)
+        st.divider()
+        st.subheader("🎯 Desafio do Esquadrão (Verificação de Aprendizagem)")
+        st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
+        st.markdown(f"**O Avaliador propõe:**\n\n{res.quiz_question}")
+        
+        resposta_aluno = st.text_input("Sua resposta para o desafio:")
+        if st.button("Enviar Resposta"):
+            if resposta_aluno:
+                evaluator = Evaluator("Avaliador", "")
+                with st.spinner("O Avaliador está analisando sua resposta..."):
+                    feedback = evaluator.evaluate_answer(res.quiz_question, resposta_aluno)
+                st.info(f"🗨️ **Feedback do Avaliador:**\n\n{feedback}")
+            else:
+                st.warning("Por favor, digite uma resposta para o desafio.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
