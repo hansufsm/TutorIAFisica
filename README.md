@@ -36,5 +36,21 @@ TutorIAFisica/
    streamlit run app.py
    ```
 
+## 🗺️ Roadmap e Estratégia de Dados (Funcionalidades Futuras)
+
+Para garantir a máxima precisão pedagógica, o projeto expandirá seu escopo de fontes seguindo uma hierarquia rigorosa de confiabilidade:
+
+### 1. Fontes de Dados Prioritárias (Específicas)
+- **Notas de Aula e Material do Docente:** Prioridade máxima para alinhamento com a didática específica da turma.
+- **Documentos de Referência:** Apostilas e materiais autorais carregados pelo professor.
+
+### 2. Base Institucional e Bibliográfica
+- **Ementário UFSM:** Integração automática com a bibliografia básica e complementar das disciplinas de Física e Engenharia da UFSM.
+- **Acervos Universitários:** Consultas a repositórios de Universidades Federais e Estaduais de renome.
+
+### 3. Fontes Externas e Internacionais
+- **Rede Universitária Confiável:** Prioridade para fontes em Língua Portuguesa (Ex: portais de IFs e Universidades Federais) seguida por referências internacionais de renome (Ex: MIT, Caltech, CERN).
+- **Filtro de Relevância:** Bloqueio estrito de blogs, páginas pessoais ou sites de "resumos" sem validação acadêmica comprovada.
+
 ---
-*Desenvolvido para elevar o padrão do ensino superior de Física através da Inteligência Artificial.*
+*Nota de Integridade: O TutorIAFisica prioriza o conhecimento científico estabelecido sobre opiniões ou simplificações não acadêmicas.*
