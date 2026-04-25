@@ -3,7 +3,6 @@ from core import PhysicsOrchestrator, Evaluator
 import time
 from pypdf import PdfReader
 import io
-import os
 
 # Configuração da Página
 st.set_page_config(page_title="TutorIAFisica - Mentor Acadêmico", layout="wide", page_icon="🌌")
@@ -38,11 +37,8 @@ def main():
     # Barra Lateral
     with st.sidebar:
         st.header("☁️ Repositório Cloud")
-        pcloud_base = os.path.expanduser("~/pCloudDrive/TutorIA_Notes")
-        if os.path.exists(pcloud_base):
-            st.success("☁️ pCloud Drive Conectado")
-        else:
-            st.warning("⚠️ pCloud não detectado em ~/pCloudDrive")
+        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.link/publink/show?code=...")
+        st.caption("Crie um Link Público no pCloud e cole aqui para sincronizar seus PDFs.")
 
         st.divider()
         st.header("👨‍🏫 Notas Manuais")
@@ -53,16 +49,16 @@ def main():
                 manual_notes = extract_text_from_pdf(uploaded_file)
             else:
                 manual_notes = uploaded_file.read().decode("utf-8")
-            st.info("Notas manuais adicionadas ao contexto.")
+            st.info("Notas manuais adicionadas.")
 
     # Entrada do Aluno
-    enunciado = st.text_area("O que vamos estudar hoje?", height=100, placeholder="Ex: Explique as leis de Kepler.")
+    enunciado = st.text_area("O que vamos estudar hoje?", height=100, placeholder="Ex: Explique a segunda lei da termodinâmica.")
 
     if st.button("🚀 Iniciar Aula"):
         if enunciado:
             orchestrator = PhysicsOrchestrator()
-            with st.status("Sincronizando com pCloud e ativando Agentes...", expanded=True) as status:
-                res = orchestrator.run(enunciado, teacher_notes=manual_notes)
+            with st.status("Conectando ao Repositório Cloud e ativando Agentes...", expanded=True) as status:
+                res = orchestrator.run(enunciado, teacher_notes=manual_notes, pcloud_url=pcloud_url)
                 st.session_state.last_result = res
                 status.update(label="Sincronização e Análise concluídas!", state="complete", expanded=False)
 
@@ -77,7 +73,7 @@ def main():
                 st.markdown(f"""<div class="ufsm-badge">🏛️ UFSM: {res.ufsm_alignment['codigo']} - {res.ufsm_alignment['nome']}</div>""", unsafe_allow_html=True)
         with col_badges2:
             if res.pcloud_notes_found:
-                st.markdown(f"""<div class="pcloud-badge">✅ Sincronizado com pCloud: Notas de aula do professor incorporadas.</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="pcloud-badge">✅ Cloud Ativo: Notas de aula recuperadas via pCloud Link.</div>""", unsafe_allow_html=True)
 
         tab1, tab2, tab3, tab4 = st.tabs(["🧩 Diálogo Socrático", "📐 Solução Matemática", "🖼️ Visualização", "📚 Contexto UFSM"])
 
@@ -107,7 +103,7 @@ def main():
         resposta_aluno = st.text_input("Sua resposta:")
         if st.button("Enviar Resposta"):
             evaluator = Evaluator("Avaliador", "")
-            with st.spinner("Analisando..."):
+            with st.spinner("Analisando sua resposta..."):
                 feedback = evaluator.evaluate_answer(res.quiz_question, resposta_aluno)
             st.info(f"🗨️ **Feedback:** {feedback}")
         st.markdown('</div>', unsafe_allow_html=True)

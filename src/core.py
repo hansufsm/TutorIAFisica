@@ -2,9 +2,11 @@ import os
 import google.generativeai as genai
 import time
 import json
+import requests
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 from pypdf import PdfReader
+import io
 
 # Load environment variables
 load_dotenv()
@@ -18,9 +20,10 @@ else:
 
 class PhysicsState:
     """Maintains the rich state of the conversation and physical context."""
-    def __init__(self, raw_input: str, teacher_notes: str = ""):
+    def __init__(self, raw_input: str, teacher_notes: str = "", pcloud_url: str = ""):
         self.raw_input = raw_input
         self.teacher_notes = teacher_notes
+        self.pcloud_url = pcloud_url
         self.concepts = []
         self.solution_steps = ""
         self.pergunta_socratica = ""
@@ -29,7 +32,6 @@ class PhysicsState:
         self.mapa_mental_markdown = ""
         self.ufsm_alignment = None 
         self.pcloud_notes_found = False
-        # Campos de Avaliação
         self.quiz_question = ""
 
     def check_ufsm_syllabus(self):
@@ -41,36 +43,62 @@ class PhysicsState:
                     for conceito in self.concepts:
                         if tema.lower() in conceito.lower() or conceito.lower() in tema.lower():
                             self.ufsm_alignment = disciplina
-                            # Tenta buscar notas no pCloud se houver match institucional
-                            self.fetch_pcloud_notes()
                             return
         except Exception as e:
             print(f"Erro ao consultar ementário: {e}")
 
-    def fetch_pcloud_notes(self):
-        """Busca arquivos PDF na pasta correspondente do pCloud Drive."""
-        if not self.ufsm_alignment:
+    def fetch_pcloud_public_notes(self):
+        """Busca arquivos PDF através de um link público do pCloud."""
+        if not self.pcloud_url:
             return
         
-        code = self.ufsm_alignment['codigo']
-        pcloud_path = os.path.expanduser(f"~/pCloudDrive/TutorIA_Notes/{code}")
-        
-        if os.path.exists(pcloud_path):
-            files = [f for f in os.listdir(pcloud_path) if f.endswith('.pdf')]
-            if files:
-                print(f"[*] Notas encontradas no pCloud para {code}: {files}")
-                self.pcloud_notes_found = True
-                content = ""
-                for file in files:
-                    try:
-                        reader = PdfReader(os.path.join(pcloud_path, file))
-                        for page in reader.pages:
-                            content += page.extract_text() + "\n"
-                    except Exception as e:
-                        print(f"Erro ao ler PDF do pCloud: {e}")
+        # Extrai o código do link (ex: https://u.pcloud.link/publink/show?code=XZ123 -> XZ123)
+        try:
+            code = self.pcloud_url.split("code=")[-1]
+            # Tenta primeiro a API da Europa (comum para muitos usuários) e depois a Global
+            api_url = "https://eapi.pcloud.com/showpublink"
+            response = requests.get(api_url, params={"code": code})
+            data = response.json()
+            
+            # Se falhar na Europa, tenta a Global
+            if data.get("result") != 0:
+                api_url = "https://api.pcloud.com/showpublink"
+                response = requests.get(api_url, params={"code": code})
+                data = response.json()
+
+            if data.get("result") == 0:
+                metadata = data.get("metadata", {})
+                contents = metadata.get("contents", [])
                 
-                # Concatena com notas manuais se existirem
-                self.teacher_notes = (self.teacher_notes + "\n\n" + content).strip()
+                pdf_files = [item for item in contents if item.get("name", "").endswith(".pdf")]
+                
+                if pdf_files:
+                    print(f"[*] {len(pdf_files)} PDFs encontrados no link público pCloud.")
+                    self.pcloud_notes_found = True
+                    all_text = ""
+                    
+                    for pdf_info in pdf_files:
+                        # Obtém o link de download direto para o arquivo
+                        dl_url_api = "https://eapi.pcloud.com/getpublinkdownload"
+                        dl_res = requests.get(dl_url_api, params={"code": code, "fileid": pdf_info['fileid']})
+                        dl_data = dl_res.json()
+                        
+                        if dl_data.get("result") == 0:
+                            # Constrói a URL de download real
+                            path = dl_data['path']
+                            host = dl_data['hosts'][0]
+                            final_dl_url = f"https://{host}{path}"
+                            
+                            # Baixa o PDF em memória
+                            file_res = requests.get(final_dl_url)
+                            f = io.BytesIO(file_res.content)
+                            reader = PdfReader(f)
+                            for page in reader.pages:
+                                all_text += page.extract_text() + "\n"
+                    
+                    self.teacher_notes = (self.teacher_notes + "\n\n" + all_text).strip()
+        except Exception as e:
+            print(f"Erro ao processar link público pCloud: {e}")
 
 class TutorIAAgent:
     def __init__(self, name: str, system_instruction: str):
@@ -79,9 +107,9 @@ class TutorIAAgent:
 
     def ask_gemini(self, prompt: str, teacher_notes: str = "") -> str:
         if not model:
-            return "ERRO: API Key não configurada."
+            return "ERRO: Gemini API Key não configurada."
         try:
-            context_prefix = f"CONTEXTO DO PROFESSOR (PRIORIDADE): {teacher_notes}\n\n" if teacher_notes else ""
+            context_prefix = f"CONTEXTO DO PROFESSOR (FONTE PRIMÁRIA): {teacher_notes}\n\n" if teacher_notes else ""
             full_prompt = f"{self.system_instruction}\n\n{context_prefix}Entrada: {prompt}"
             response = model.generate_content(full_prompt)
             return response.text
@@ -98,7 +126,6 @@ class SocraticInterpreter(TutorIAAgent):
             state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
         else:
             state.concepts = ["Física"]
-        # Aciona o check institucional e a busca no pCloud
         state.check_ufsm_syllabus()
         return state
 
@@ -148,8 +175,11 @@ class PhysicsOrchestrator:
         self.contextualizer = Contextualizer("Curador", "")
         self.evaluator = Evaluator("Avaliador", "")
 
-    def run(self, input_data: str, teacher_notes: str = ""):
-        state = PhysicsState(input_data, teacher_notes)
+    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = ""):
+        state = PhysicsState(input_data, teacher_notes, pcloud_url)
+        # Primeiro, buscamos as notas na nuvem antes do processamento dos agentes
+        state.fetch_pcloud_public_notes()
+        
         state = self.interpreter.process(state)
         time.sleep(2)
         state = self.solver.process(state)
