@@ -105,16 +105,24 @@ class TutorIAAgent:
         self.name = name
         self.system_instruction = system_instruction
 
-    def ask_gemini(self, prompt: str, teacher_notes: str = "") -> str:
+    def ask_gemini(self, prompt: str, teacher_notes: str = "", image: Any = None) -> str:
         if not model:
             return "ERRO: Gemini API Key não configurada."
         try:
             context_prefix = f"CONTEXTO DO PROFESSOR (FONTE PRIMÁRIA): {teacher_notes}\n\n" if teacher_notes else ""
-            full_prompt = f"{self.system_instruction}\n\n{context_prefix}Entrada: {prompt}"
-            response = model.generate_content(full_prompt)
+            full_prompt_text = f"{self.system_instruction}\n\n{context_prefix}Entrada: {prompt}"
+
+            if image:
+                # Entrada Multimodal
+                response = model.generate_content([full_prompt_text, image])
+            else:
+                # Entrada de Texto apenas
+                response = model.generate_content(full_prompt_text)
+
             return response.text
         except Exception as e:
             return f"Erro na API: {str(e)}"
+
 
 class SocraticInterpreter(TutorIAAgent):
     def process(self, state: PhysicsState) -> PhysicsState:

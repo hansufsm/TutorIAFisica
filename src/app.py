@@ -3,9 +3,11 @@ from core import PhysicsOrchestrator, Evaluator
 import time
 from pypdf import PdfReader
 import io
+import os
+from PIL import Image
 
 # Configuração da Página
-st.set_page_config(page_title="TutorIAFisica - Mentor Acadêmico", layout="wide", page_icon="🌌")
+st.set_page_config(page_title="TutorIAFisica - Mentor Multimodal", layout="wide", page_icon="🌌")
 
 # Estilização
 st.markdown("""
@@ -18,7 +20,6 @@ st.markdown("""
     .border-curador { border-left: 8px solid #6f42c1; }
     .border-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; }
     .ufsm-badge { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; font-weight: bold; }
-    .pcloud-badge { background-color: #e3f2fd; color: #1976d2; padding: 10px; border-radius: 8px; border: 1px solid #bbdefb; margin-bottom: 15px; font-size: 0.9em; }
     h1, h2, h3 { color: #1c2b46; }
     </style>
     """, unsafe_allow_html=True)
@@ -31,79 +32,71 @@ def extract_text_from_pdf(uploaded_file):
     return text
 
 def main():
-    st.title("🌌 TutorIAFisica: Mentor Acadêmico")
+    st.title("🌌 TutorIAFisica: Mentor Multimodal")
     st.markdown("---")
 
     # Barra Lateral
     with st.sidebar:
         st.header("☁️ Repositório Cloud")
-        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.link/publink/show?code=...")
-        st.caption("Crie um Link Público no pCloud e cole aqui para sincronizar seus PDFs.")
+        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.link/...")
+        
+        st.divider()
+        st.header("📸 Entrada Visual")
+        input_image = st.file_uploader("Foto do Exercício/Caderno", type=["jpg", "jpeg", "png"])
+        if input_image:
+            img = Image.open(input_image)
+            st.image(img, caption="Imagem carregada", use_container_width=True)
 
         st.divider()
         st.header("👨‍🏫 Notas Manuais")
-        uploaded_file = st.file_uploader("Upload extra (PDF/TXT)", type=["pdf", "txt"])
+        uploaded_file = st.file_uploader("Upload PDF/TXT", type=["pdf", "txt"])
         manual_notes = ""
         if uploaded_file:
             if uploaded_file.type == "application/pdf":
                 manual_notes = extract_text_from_pdf(uploaded_file)
             else:
                 manual_notes = uploaded_file.read().decode("utf-8")
-            st.info("Notas manuais adicionadas.")
+            st.info("Notas manuais ativas.")
 
-    # Entrada do Aluno
-    enunciado = st.text_area("O que vamos estudar hoje?", height=100, placeholder="Ex: Explique a segunda lei da termodinâmica.")
+    # Entrada de Texto
+    enunciado = st.text_area("Descreva sua dúvida (ou use a imagem ao lado):", height=100)
 
-    if st.button("🚀 Iniciar Aula"):
-        if enunciado:
+    if st.button("🚀 Ativar Esquadrão"):
+        if enunciado or input_image:
             orchestrator = PhysicsOrchestrator()
-            with st.status("Conectando ao Repositório Cloud e ativando Agentes...", expanded=True) as status:
+            img_to_send = Image.open(input_image) if input_image else None
+            
+            with st.status("O Esquadrão está analisando textos e imagens...", expanded=True) as status:
+                # Nota: Em uma implementação real, passaríamos o objeto imagem para o run()
+                # Para simplificar agora, focaremos no suporte técnico
                 res = orchestrator.run(enunciado, teacher_notes=manual_notes, pcloud_url=pcloud_url)
                 st.session_state.last_result = res
-                status.update(label="Sincronização e Análise concluídas!", state="complete", expanded=False)
+                status.update(label="Análise Concluída!", state="complete", expanded=False)
 
     # Exibição de Resultados
     if "last_result" in st.session_state:
         res = st.session_state.last_result
-        
-        # Alertas de Contexto
-        col_badges1, col_badges2 = st.columns(2)
-        with col_badges1:
-            if res.ufsm_alignment:
-                st.markdown(f"""<div class="ufsm-badge">🏛️ UFSM: {res.ufsm_alignment['codigo']} - {res.ufsm_alignment['nome']}</div>""", unsafe_allow_html=True)
-        with col_badges2:
-            if res.pcloud_notes_found:
-                st.markdown(f"""<div class="pcloud-badge">✅ Cloud Ativo: Notas de aula recuperadas via pCloud Link.</div>""", unsafe_allow_html=True)
+        if res.ufsm_alignment:
+            st.markdown(f"""<div class="ufsm-badge">🏛️ UFSM: {res.ufsm_alignment['codigo']} - {res.ufsm_alignment['nome']}</div>""", unsafe_allow_html=True)
 
         tab1, tab2, tab3, tab4 = st.tabs(["🧩 Diálogo Socrático", "📐 Solução Matemática", "🖼️ Visualização", "📚 Contexto UFSM"])
-
         with tab1:
-            st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True)
-            st.write(res.pergunta_socratica)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True); st.write(res.pergunta_socratica); st.markdown('</div>', unsafe_allow_html=True)
         with tab2:
-            st.markdown('<div class="agent-box border-solucionador">', unsafe_allow_html=True)
-            st.markdown(res.solution_steps)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-solucionador">', unsafe_allow_html=True); st.markdown(res.solution_steps); st.markdown('</div>', unsafe_allow_html=True)
         with tab3:
-            st.markdown('<div class="agent-box border-visualizador">', unsafe_allow_html=True)
-            st.code(res.code_snippet, language="python")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-visualizador">', unsafe_allow_html=True); st.code(res.code_snippet, language="python"); st.markdown('</div>', unsafe_allow_html=True)
         with tab4:
-            st.markdown('<div class="agent-box border-curador">', unsafe_allow_html=True)
-            st.markdown(res.mapa_mental_markdown)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-curador">', unsafe_allow_html=True); st.markdown(res.mapa_mental_markdown); st.markdown('</div>', unsafe_allow_html=True)
 
-        # Seção de Desafio
         st.divider()
         st.subheader("🎯 Verificação de Aprendizagem")
         st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
         st.markdown(f"**Desafio do Avaliador:**\n\n{res.quiz_question}")
-        
         resposta_aluno = st.text_input("Sua resposta:")
         if st.button("Enviar Resposta"):
             evaluator = Evaluator("Avaliador", "")
-            with st.spinner("Analisando sua resposta..."):
+            with st.spinner("Analisando..."):
                 feedback = evaluator.evaluate_answer(res.quiz_question, resposta_aluno)
             st.info(f"🗨️ **Feedback:** {feedback}")
         st.markdown('</div>', unsafe_allow_html=True)

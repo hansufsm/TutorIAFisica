@@ -11,7 +11,12 @@ O sistema opera através de uma **Orquestração de Agentes Independentes** base
 5. **Curador:** Enriquece a resposta com dados do mundo real e fontes acadêmicas.
 
 ### Comunicação entre Agentes
-O `PhysicsOrchestrator` garante que o output de um agente seja validado e passado para o próximo, mantendo o contexto íntegro durante toda a sessão.
+O `PhysicsOrchestrator` garante que o output de um agente seja validado e passado para o próximo. O novo agente **Avaliador** encerra o ciclo gerando desafios de verificação.
 
-### Resiliência de API
-O motor implementa um sistema de `time.sleep()` entre chamadas para respeitar os limites de cota de APIs de nível gratuito (Free Tier), garantindo estabilidade em demonstrações de sala de aula.
+### Integração pCloud (Cloud-First)
+- **Mecanismo:** Utiliza a API `showpublink` e `getpublinkdownload` do pCloud.
+- **Fluxo:** O sistema extrai o `code` do link público, lista arquivos PDF e os processa em memória (buffer) via `requests` e `io.BytesIO`.
+- **Independência:** O sistema é agnóstico à infraestrutura local, permitindo deploy em nuvem sem dependência de drivers de sincronização.
+
+### Avaliação Formativa
+O motor agora possui uma via de feedback de mão dupla. O aluno não é apenas um receptor; ele é desafiado pelo agente **Avaliador**, que utiliza técnicas de "andaime cognitivo" para corrigir erros sem entregar a resposta final prematuramente.
