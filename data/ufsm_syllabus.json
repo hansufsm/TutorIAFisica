@@ -1,0 +1,60 @@
+{
+  "curso": "Física Licenciatura Plena - UFSM",
+  "codigo_curso": "679",
+  "disciplinas": [
+    {
+      "codigo": "FSC1027",
+      "nome": "Física I",
+      "periodo": 1,
+      "temas": ["Cinemática", "Dinâmica", "Leis de Newton", "Trabalho", "Energia", "Gravitação"],
+      "bibliografia_basica": [
+        "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 1: Mecânica.",
+        "Tipler, P. A., Mosca, G. Física para Cientistas e Engenheiros, Vol. 1."
+      ],
+      "bibliografia_complementar": [
+        "Nussenzveig, H. M. Curso de Física Básica, Vol. 1.",
+        "Sears, F., Zemansky, M. Física I: Mecânica."
+      ]
+    },
+    {
+      "codigo": "FSC1028",
+      "nome": "Física II",
+      "periodo": 2,
+      "temas": ["Fluidos", "Oscilações", "Ondas", "Termodinâmica", "Calor"],
+      "bibliografia_basica": [
+        "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 2.",
+        "Tipler, P. A., Mosca, G. Física para Cientistas e Engenheiros, Vol. 2."
+      ],
+      "bibliografia_complementar": [
+        "Nussenzveig, H. M. Curso de Física Básica, Vol. 2."
+      ]
+    },
+    {
+      "codigo": "FSC1029",
+      "nome": "Física III",
+      "periodo": 3,
+      "temas": ["Eletrostática", "Lei de Coulomb", "Campo Elétrico", "Potencial Elétrico", "Capacitância", "Circuitos", "Magnetismo"],
+      "bibliografia_basica": [
+        "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 3.",
+        "Tipler, P. A., Mosca, G. Física para Cientistas e Engenheiros, Vol. 2."
+      ],
+      "bibliografia_complementar": [
+        "Griffiths, D. J. Introduction to Electrodynamics.",
+        "Nussenzveig, H. M. Curso de Física Básica, Vol. 3."
+      ]
+    },
+    {
+      "codigo": "FSC1030",
+      "nome": "Física IV",
+      "periodo": 4,
+      "temas": ["Óptica", "Interferência", "Difração", "Relatividade", "Física Moderna", "Mecânica Quântica"],
+      "bibliografia_basica": [
+        "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 4.",
+        "Eisberg, R., Resnick, R. Física Quântica."
+      ],
+      "bibliografia_complementar": [
+        "Tipler, P. A., Llewellyn, R. A. Física Moderna."
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import io
 # Configuração da Página
 st.set_page_config(page_title="TutorIAFisica - Mentor de Física", layout="centered", page_icon="🌌")
 
-# Injeção de CSS para Estilização de Agentes e Dark Mode
+# Injeção de CSS para Estilização de Agentes, Dark Mode e Selo UFSM
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; }
@@ -17,6 +17,16 @@ st.markdown("""
     [data-testimonial-name="Solucionador"] { border-left: 6px solid #2ca02c !important; }
     [data-testimonial-name="Visualizador"] { border-left: 6px solid #ff7f0e !important; }
     [data-testimonial-name="Curador"] { border-left: 6px solid #9467bd !important; }
+    
+    .ufsm-badge {
+        background-color: #f1c40f;
+        color: #2c3e50;
+        padding: 10px;
+        border-radius: 10px;
+        border: 2px solid #f39c12;
+        margin-bottom: 15px;
+        font-weight: bold;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -29,7 +39,7 @@ def extract_text_from_pdf(uploaded_file):
 
 def main():
     st.title("🌌 TutorIAFisica")
-    st.caption("Seu esquadrão de especialistas em Física | Gemini 2.0 Dynamic")
+    st.caption("Seu esquadrão de especialistas em Física | Alinhamento Institucional UFSM")
 
     # Sidebar para Notas do Professor
     with st.sidebar:
@@ -42,13 +52,11 @@ def main():
                 teacher_notes = extract_text_from_pdf(uploaded_file)
             else:
                 teacher_notes = uploaded_file.read().decode("utf-8")
-            st.success("✅ Notas de aula carregadas com sucesso!")
-            with st.expander("Ver conteúdo extraído"):
-                st.write(teacher_notes[:500] + "...")
+            st.success("✅ Notas de aula carregadas!")
 
         st.divider()
         st.header("💡 Sistema de Agentes")
-        st.info("O esquadrão priorizará as notas carregadas pelo professor para responder.")
+        st.info("O esquadrão está sincronizado com o ementário oficial da UFSM.")
 
     # Inicializa histórico de chat
     if "messages" not in st.session_state:
@@ -67,11 +75,20 @@ def main():
 
         orchestrator = PhysicsOrchestrator()
         
-        with st.status("Consultando o esquadrão e as notas do professor...", expanded=True) as status:
-            st.write("🧩 **Agentes** analisando contexto...")
-            # Passa as notas do professor para o orquestrador
+        with st.status("Consultando o esquadrão e o ementário UFSM...", expanded=True) as status:
             res = orchestrator.run(prompt, teacher_notes=teacher_notes)
             status.update(label="Análise Concluída!", state="complete", expanded=False)
+
+        # 1. Alinhamento Institucional UFSM (Destaque)
+        if res.ufsm_alignment:
+            d = res.ufsm_alignment
+            st.markdown(f"""
+                <div class="ufsm-badge">
+                    🏛️ ALINHAMENTO INSTITUCIONAL UFSM<br>
+                    Disciplina: {d['codigo']} - {d['nome']} ({d['periodo']}º Período)<br>
+                    Bibliografia Básica recomendada no curso 102/679: {', '.join(d['bibliografia_basica'])}
+                </div>
+            """, unsafe_allow_html=True)
 
         # Exibição das respostas dos Agentes
         with st.chat_message("Intérprete", avatar="🧩"):
