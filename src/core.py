@@ -17,8 +17,9 @@ else:
 
 class PhysicsState:
     """Maintains the rich state of the conversation and physical context."""
-    def __init__(self, raw_input: str):
+    def __init__(self, raw_input: str, teacher_notes: str = ""):
         self.raw_input = raw_input
+        self.teacher_notes = teacher_notes
         self.concepts = []
         self.solution_steps = ""
         self.pergunta_socratica = ""
@@ -36,11 +37,13 @@ class TutorIAAgent:
         self.name = name
         self.system_instruction = system_instruction
 
-    def ask_gemini(self, prompt: str) -> str:
+    def ask_gemini(self, prompt: str, teacher_notes: str = "") -> str:
         if not model:
             return "ERRO: Gemini API Key não configurada no arquivo .env."
         try:
-            full_prompt = f"{self.system_instruction}\n\nEntrada do Aluno: {prompt}"
+            # Contexto do professor adicionado ao prompt se disponível
+            context_prefix = f"IMPORTANTE: Utilize o seguinte contexto das notas de aula do professor como referência principal: {teacher_notes}\n\n" if teacher_notes else ""
+            full_prompt = f"{self.system_instruction}\n\n{context_prefix}Entrada do Aluno: {prompt}"
             response = model.generate_content(full_prompt)
             return response.text
         except Exception as e:
@@ -57,7 +60,7 @@ class SocraticInterpreter(TutorIAAgent):
             "separados por vírgula e depois a pergunta socrática."
         )
         self.system_instruction = instruction
-        response = self.ask_gemini(state.raw_input)
+        response = self.ask_gemini(state.raw_input, state.teacher_notes)
         
         # Simple parsing for the UI
         state.pergunta_socratica = response
@@ -78,7 +81,7 @@ class DimensionalSolver(TutorIAAgent):
             "das unidades no SI. Seja rigoroso e didático."
         )
         self.system_instruction = instruction
-        state.solution_steps = self.ask_gemini(state.raw_input)
+        state.solution_steps = self.ask_gemini(state.raw_input, state.teacher_notes)
         return state
 
 class InteractiveVisualizer(TutorIAAgent):
@@ -91,7 +94,7 @@ class InteractiveVisualizer(TutorIAAgent):
             "Não forneça explicações em texto, apenas o bloco de código funcional."
         )
         self.system_instruction = instruction
-        code = self.ask_gemini(state.raw_input)
+        code = self.ask_gemini(state.raw_input, state.teacher_notes)
         # Clean markdown code blocks if present
         state.code_snippet = code.replace("```python", "").replace("```", "").strip()
         return state
@@ -108,7 +111,7 @@ class Contextualizer(TutorIAAgent):
             "Nunca use blogs ou fontes não confiáveis."
         )
         self.system_instruction = instruction
-        state.mapa_mental_markdown = self.ask_gemini(state.raw_input)
+        state.mapa_mental_markdown = self.ask_gemini(state.raw_input, state.teacher_notes)
         return state
 
 class PhysicsOrchestrator:
@@ -119,8 +122,8 @@ class PhysicsOrchestrator:
         self.visualizer = InteractiveVisualizer("Visualizador", "")
         self.contextualizer = Contextualizer("Curador", "")
 
-    def run(self, input_data: str):
-        state = PhysicsState(input_data)
+    def run(self, input_data: str, teacher_notes: str = ""):
+        state = PhysicsState(input_data, teacher_notes)
         state = self.interpreter.process(state)
         time.sleep(3) # Delay para evitar estouro de quota (429)
         state = self.solver.process(state)
