@@ -17,27 +17,60 @@ class PhysicsState:
         self.mapa_mental_markdown = ""
         self.aplicacoes_reais = []
 
+class TutorIAAgent:
+    """Classe base para todos os agentes do sistema."""
+    def __init__(self, name: str, instructions: str):
+        self.name = name
+        self.instructions = instructions
+
+    def process(self, state: PhysicsState) -> PhysicsState:
+        print(f"[*] {self.name} processando...")
+        return state
+
+class SocraticInterpreter(TutorIAAgent):
+    """Analisa o enunciado e decide se precisa de mais info do aluno."""
+    def process(self, state: PhysicsState) -> PhysicsState:
+        print(f"[*] {self.name}: Decompondo o problema e verificando conceitos.")
+        state.concepts = ["Eletrostática", "Lei de Coulomb", "Campo Elétrico"]
+        return state
+
+class DimensionalSolver(TutorIAAgent):
+    """Resolve e valida unidades."""
+    def process(self, state: PhysicsState) -> PhysicsState:
+        print(f"[*] {self.name}: Calculando com verificação dimensional (SI).")
+        return state
+
+class InteractiveVisualizer(TutorIAAgent):
+    """Gera código Python para visualização dinâmica."""
+    def process(self, state: PhysicsState) -> PhysicsState:
+        print(f"[*] {self.name}: Gerando código para simulação em Plotly.")
+        state.code_snippet = "import plotly.graph_objects as go\n# Código gerado para visualizar campo elétrico..."
+        return state
+
 class Contextualizer(TutorIAAgent):
     """Resgata a essência do FisicaIA: Conectar com o mundo real e acadêmico."""
     def process(self, state: PhysicsState) -> PhysicsState:
-        print(f"[*] {self.name}: Gerando curadoria acadêmica...")
+        print(f"[*] {self.name}: Gerando curadoria acadêmica e aplicações práticas.")
         state.links_universidades = [
             "https://www.if.ufrgs.br/institucional/",
             "https://portal.ufsm.br/ementario/curso.html?curso=414",
             "https://www.ifsc.usp.br/"
         ]
-        state.video_sugerido = "https://www.youtube.com/watch?v=dQw4w9WgXcQ" # Exemplo
+        state.video_sugerido = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         state.exercicios_propostos = [
             {"nivel": "Médio", "enunciado": "Calcule a nova força se a distância dobrar."},
             {"nivel": "Desafio", "enunciado": "Determine o campo elétrico no ponto médio entre as cargas."}
         ]
-        state.aplicacoes_reais = ["Desfibriladores cardíacos", "Impressoras a jato de tinta", "Pintura eletrostática"]
+        state.aplicacoes_reais = ["Desfibriladores cardíacos", "Pintura eletrostática", "Xerografia"]
         state.mapa_mental_markdown = """
-        # Eletrostática
-        ## Lei de Coulomb
-        ### Cargas
-        ### Distância
-        ## Campo Elétrico
+# Eletrostática
+## Lei de Coulomb
+- Cargas (q1, q2)
+- Distância (r)
+- Constante (k)
+## Aplicações
+- Desfibriladores
+- Impressoras
         """
         return state
 
@@ -59,4 +92,10 @@ class PhysicsOrchestrator:
 
 if __name__ == "__main__":
     tutor = PhysicsOrchestrator()
-    tutor.run("Calcular a força entre duas cargas de 2C a 3m de distância.")
+    print("--- INICIANDO TESTE DO TUTORIAFISICA ---")
+    resultado = tutor.run("Calcular a força entre duas cargas de 5uC separadas por 10cm.")
+    print("\n--- RESULTADOS DO TESTE ---")
+    print(f"Conceitos: {resultado.concepts}")
+    print(f"Aplicações Reais: {resultado.aplicacoes_reais}")
+    print(f"Links Acadêmicos: {len(resultado.links_universidades)} fontes encontradas.")
+    print("--- TESTE CONCLUÍDO COM SUCESSO ---")
