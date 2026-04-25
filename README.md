@@ -1,26 +1,40 @@
-# TutorIAFisica 🌌
+# TutorIAFisica 🌌 (v2.0 - 2026)
 
-O **TutorIAFisica** é a evolução do projeto *FisicaIA* (2025). É um ecossistema de agentes inteligentes projetado para o ensino superior de física, focado em **Tutoria Socrática** e **Validação Dimensional**.
+O **TutorIAFisica** é a evolução do projeto *FisicaIA*. Ele foi transformado de uma sequência de scripts em um ecossistema de agentes inteligentes focados em **Aprendizagem Significativa**, **Rigor Matemático** e **Curadoria Acadêmica**.
 
-## 🚀 O que há de novo (Versão 2026)
+## 🚀 Inovações Pedagógicas (State-of-the-Art)
 
-- **Orquestração de Grafos:** Os agentes não são mais uma linha de produção estática. Eles interagem, corrigem uns aos outros e solicitam feedback do aluno quando detectam ambiguidades.
-- **Modo Socrático:** A IA agora prioriza perguntar ao aluno sobre os fundamentos antes de entregar a solução matemática completa.
-- **Multimodalidade Nativa:** Suporte para entrada via fotos de diagramas e equações manuscritas (via Gemini 1.5+ Pro).
-- **Simulações Executáveis:** Geração automática de ambientes interativos em Streamlit e Plotly.
+O projeto agora utiliza uma arquitetura de **Estado de Agentes**, onde cada interação é processada sob quatro dimensões fundamentais:
 
-## 🤖 Os Agentes
+1.  **Dimensão Socrática (Intérprete):** Não entrega a resposta de imediato. Desconstrói o problema e desafia o aluno com perguntas reflexivas para validar a compreensão conceitual.
+2.  **Dimensão Procedimental (Solucionador):** Foca na análise dimensional e no passo a passo matemático rigoroso, utilizando LaTeX para precisão científica.
+3.  **Dimensão Intuitiva (Visualizador):** Gera código e gráficos dinâmicos para transformar equações abstratas em intuição física visual.
+4.  **Dimensão Contextual (Curador):** Resgata a essência do projeto original, conectando o problema a:
+    - **Aplicações Reais:** Ex: Desfibriladores, pintura eletrostática.
+    - **Curadoria Acadêmica:** Links diretos para Universidades Federais (UFSM, UFRGS, USP).
+    - **Recursos Multimodais:** Sugestão de vídeos e mapas mentais.
+    - **Níveis de Desafio:** Exercícios extras (Médio e Desafio).
 
-1. **Intérprete Socrático:** Foca na decomposição conceitual e no diálogo com o aluno.
-2. **Solucionador Dimensional:** Garante que a matemática siga o rigor físico e valida as unidades.
-3. **Visualizador Dinâmico:** Transforma dados em intuição visual através de código.
-4. **Curador RAG:** Conecta o problema a bases de conhecimento científico e livros didáticos reais.
+## 🛠️ Estrutura do Projeto
 
-## 🛠️ Tecnologias
-- Python 3.11+
-- Google Gemini API
-- Streamlit / Plotly
-- LangGraph (Arquitetura de Agentes)
+```text
+TutorIAFisica/
+├── src/
+│   ├── app.py      # Frontend moderno em Streamlit (Tema Claro)
+│   └── core.py     # Cérebro do sistema (Orquestrador e Agentes)
+├── README.md       # Documentação do projeto
+└── .gitignore      # Proteção de arquivos sensíveis
+```
+
+## 💻 Como Rodar
+
+1. Clone o repositório.
+2. Instale as dependências: `pip install streamlit`.
+3. Execute o servidor:
+   ```bash
+   cd src
+   streamlit run app.py
+   ```
 
 ---
-*Concebido como evolução pedagógica para o ensino de engenharia e física.*
+*Desenvolvido para elevar o padrão do ensino superior de Física através da Inteligência Artificial.*
