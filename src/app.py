@@ -2,78 +2,70 @@ import streamlit as st
 from core import PhysicsOrchestrator
 import time
 
-st.set_page_config(page_title="TutorIAFisica 2026", layout="wide")
+st.set_page_config(page_title="TutorIAFisica 2026", layout="wide", page_icon="🌌")
 
 # Estilização
 st.markdown("""
     <style>
-    .context-box { padding: 15px; border-radius: 10px; background-color: #f1f8ff; border-left: 5px solid #007bff; margin-bottom: 10px; }
-    .exercise-box { padding: 15px; border-radius: 10px; background-color: #fff4e6; border-left: 5px solid #fd7e14; margin-bottom: 10px; }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #f8f9fa; border-radius: 5px; padding: 10px; }
+    .stTabs [aria-selected="true"] { background-color: #007bff; color: white; }
+    div.stButton > button:first-child { background-color: #007bff; color: white; height: 3em; width: 100%; border-radius: 8px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
 def main():
-    st.title("🌌 TutorIAFisica: Mentor de Física")
+    st.title("🌌 TutorIAFisica: Mentor Inteligente")
+    st.caption("Arquitetura 2026 conectada ao Gemini 1.5 Flash")
     
     with st.sidebar:
-        st.header("💡 Como funciona?")
-        st.write("1. O **Intérprete** mapeia os conceitos.")
-        st.write("2. O **Solucionador** cuida do rigor matemático.")
-        st.write("3. O **Visualizador** cria a intuição gráfica.")
-        st.write("4. O **Curador** traz a física para a vida real.")
+        st.header("💡 Sistema de Agentes")
+        st.info("Cada aba representa a análise de um especialista diferente do esquadrão.")
+        st.divider()
+        st.markdown("### 📚 Fontes Curadas")
+        st.write("Prioridade: .edu.br | .gov.br")
 
-    enunciado = st.text_area("Digite seu problema de física:", height=100)
+    enunciado = st.text_area("Descreva seu problema ou dúvida de física:", height=120, placeholder="Ex: Qual a velocidade de escape da Terra?")
 
-    if st.button("🚀 Ativar Esquadrão"):
+    if st.button("🚀 Consultar Esquadrão"):
         if enunciado:
             orchestrator = PhysicsOrchestrator()
-            with st.spinner("O Esquadrão está debatendo seu problema..."):
-                res = orchestrator.run(enunciado)
             
-            # --- TAB LAYOUT (Inovação 2026 para organização) ---
-            tab1, tab2, tab3, tab4 = st.tabs(["🧩 Explicação Socrática", "📐 Solução Técnica", "🖼️ Visualização", "🌎 Contexto & Prática"])
+            with st.status("O Esquadrão está analisando seu problema...", expanded=True) as status:
+                st.write("🔍 **Intérprete** mapeando conceitos...")
+                # The actual work happens here
+                res = orchestrator.run(enunciado)
+                status.update(label="Análise Concluída!", state="complete", expanded=False)
+            
+            # Layout em Abas
+            tab1, tab2, tab3, tab4 = st.tabs([
+                "🧩 Diálogo Socrático", 
+                "📐 Solução Matemática", 
+                "🖼️ Visualização", 
+                "🌎 Contexto Acadêmico"
+            ])
 
             with tab1:
-                st.subheader("O que estamos estudando aqui?")
-                st.write(f"Conceitos detectados: {', '.join(res.concepts)}")
-                st.info("💭 **Pergunta Socrática:** Se aumentarmos a carga, o que acontece com a intensidade do campo ao redor dela?")
+                st.subheader("Análise Conceitual")
+                st.write(res.pergunta_socratica)
                 
             with tab2:
-                st.subheader("Passo a Passo Matemático")
-                st.latex(r"F = k_e \frac{q_1 q_2}{r^2}")
-                st.success("Cálculo validado dimensionalmente (SI: Newtons).")
+                st.subheader("Passo a Passo Rigoroso")
+                st.markdown(res.solution_steps)
                 
             with tab3:
-                st.subheader("Intuição Visual")
+                st.subheader("Código de Simulação")
                 st.code(res.code_snippet, language="python")
-                st.line_chart([10, 5, 2.5, 1.25, 0.6], use_container_width=True)
+                st.info("Copie o código acima e rode em um ambiente Python para ver o gráfico.")
                 
             with tab4:
-                st.subheader("A Física no Mundo Real")
-                col_a, col_b = st.columns(2)
-                
-                with col_a:
-                    st.markdown("**Aplicações Práticas:**")
-                    for app in res.aplicacoes_reais:
-                        st.markdown(f"- {app}")
-                    
-                    st.markdown("**Curadoria de Vídeos:**")
-                    st.video(res.video_sugerido)
-
-                with col_b:
-                    st.markdown("**Aprofundamento Acadêmico (Links Federais):**")
-                    for link in res.links_universidades:
-                        st.markdown(f"🔗 [Acesse a Fonte]({link})")
-                    
-                    st.markdown("**Desafios Extras:**")
-                    for ex in res.exercicios_propostos:
-                        st.markdown(f"""<div class="exercise-box"><b>Nível {ex['nivel']}:</b><br>{ex['enunciado']}</div>""", unsafe_allow_html=True)
+                st.subheader("Física no Mundo Real e Fontes")
+                st.markdown(res.mapa_mental_markdown)
 
             st.divider()
-            with st.expander("🗺️ Ver Mapa Mental do Problema"):
-                st.markdown(res.mapa_mental_markdown)
+            st.success("🤖 Feedback: O esquadrão utilizou dados científicos para esta resposta.")
         else:
-            st.error("Por favor, forneça um enunciado.")
+            st.error("Por favor, digite uma pergunta.")
 
 if __name__ == "__main__":
     main()

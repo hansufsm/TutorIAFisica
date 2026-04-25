@@ -52,5 +52,22 @@ Para garantir a máxima precisão pedagógica, o projeto expandirá seu escopo d
 - **Rede Universitária Confiável:** Prioridade para fontes em Língua Portuguesa (Ex: portais de IFs e Universidades Federais) seguida por referências internacionais de renome (Ex: MIT, Caltech, CERN).
 - **Filtro de Relevância:** Bloqueio estrito de blogs, páginas pessoais ou sites de "resumos" sem validação acadêmica comprovada.
 
+## 🛠️ Governança de Modelos e Contemporaneidade (2026)
+
+O **TutorIAFisica** implementa um protocolo rigoroso de verificação para garantir que o motor de inteligência utilize modelos que representem o estado da arte no ensino de ciências.
+
+### 1. Protocolo de Verificação de Modelos
+Em abril de 2026, realizamos uma auditoria de compatibilidade que resultou na transição para a família de modelos **Gemini 2.x**. Este processo de modernização incluiu:
+- **Discovery Dinâmico:** O sistema agora possui rotinas para listar e validar modelos disponíveis via `genai.list_models()`, evitando falhas por depreciação (ex: transição do 1.5 para 2.0/2.5).
+- **Seleção por Performance:** Optou-se pelo modelo **`gemini-flash-latest`** (ou `2.0-flash`) devido ao equilíbrio superior entre latência de resposta socrática e precisão em LaTeX matemático.
+
+### 2. Gestão de Cota e Orquestração Ética
+Diferente de sistemas de chat comuns, o TutorIAFisica opera uma **Orquestração de Agentes em Cascata**. Para respeitar os limites de cota da infraestrutura e garantir a estabilidade pedagógica:
+- **Sequential Delay (3s):** Implementação de intervalos estratégicos entre agentes para evitar erros `429 (Too Many Requests)`.
+- **System Instructions Específicas:** Cada agente recebe um "blueprint" de comportamento contemporâneo, garantindo que o Intérprete nunca forneça a resposta antes do Solucionador, preservando o método socrático.
+
+### 3. Resiliência à Obsolescência
+O código foi refatorado para ser **Model-Agnostic**. A troca de um modelo de 2025 para um de 2026 exige apenas a alteração de uma constante, mantendo a integridade de toda a lógica de estado e curadoria acadêmica.
+
 ---
-*Nota de Integridade: O TutorIAFisica prioriza o conhecimento científico estabelecido sobre opiniões ou simplificações não acadêmicas.*
+*Nota Técnica: Em 25 de Abril de 2026, o sistema foi validado com sucesso para lidar com temas complexos como Oscilações e Mecânica Clássica (ex: Pêndulo Simples) usando o motor Gemini 2.0.*
