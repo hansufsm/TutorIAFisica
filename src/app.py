@@ -5,7 +5,7 @@ from pypdf import PdfReader
 import io
 import os
 from PIL import Image
-from config import Config # Importa Config para acessar modelos e chaves
+from config import Config
 from typing import Dict, Any, Optional
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -36,7 +36,7 @@ def extract_text_from_pdf(uploaded_file):
 
 def main():
     st.title("🌌 TutorIAFisica: Mentor Multi-Model")
-    st.caption("v4.2 | Seleção Flexível de Modelos com Fallback Automático")
+    st.caption("v4.3 | Seleção Flexível de Modelos com Fallback Automático e Gerenciamento de Chaves")
 
     # --- BARRA LATERAL ---
     with st.sidebar:
@@ -65,7 +65,7 @@ def main():
 
         # Gerenciamento de Chaves API (requer chaves para modelo selecionado ou fallback)
         runtime_keys = {}
-        keys_to_prompt = []
+        keys_to_prompt_names = []
         
         # Identifica quais chaves API são necessárias com base na ordem de preferência
         # e quais estão faltando no .env. Prioriza o modelo selecionado.
@@ -76,13 +76,13 @@ def main():
         for model_name_to_check in models_to_check_keys:
             key_name = Config.get_provider_key_name(model_name_to_check)
             if key_name and not os.getenv(key_name): # Se a chave não está no .env
-                if key_name not in keys_to_prompt:
-                    keys_to_prompt.append(key_name)
+                if key_name not in keys_to_prompt_names:
+                    keys_to_prompt_names.append(key_name)
         
-        if keys_to_prompt:
+        if keys_to_prompt_names:
             with st.container():
                 st.warning(f"Chave API para **{st.session_state.selected_model_display_name}** não encontrada no `.env`.")
-                for key_name_to_get in keys_to_prompt:
+                for key_name_to_get in keys_to_prompt_names:
                     user_key = st.text_input(f"Cole sua chave {key_name_to_get}:", type="password", key=f"runtime_key_{key_name_to_get}")
                     if user_key:
                         runtime_keys[key_name_to_get] = user_key
@@ -180,17 +180,21 @@ def main():
         st.subheader("🎯 Verificação de Aprendizagem")
         
         # Controle de estado do quiz
+        if 'quiz_visible' not in st.session_state: st.session_state.quiz_visible = False
         if 'quiz_generated' not in st.session_state: st.session_state.quiz_generated = False
         if 'quiz_question' not in st.session_state: st.session_state.quiz_question = ""
         if 'quiz_feedback' not in st.session_state: st.session_state.quiz_feedback = ""
         
-        # Gerar a pergunta apenas uma vez por rodada de consulta principal
-        if res.quiz_question and not st.session_state.quiz_generated:
-            st.session_state.quiz_question = res.quiz_question
-            st.session_state.quiz_generated = True
+        # Botão para ativar o desafio
+        if st.button("Desafie-me! Quero testar meu conhecimento"):
+            st.session_state.quiz_visible = True
+            st.session_state.quiz_question = res.quiz_question # Armazena a pergunta gerada
             st.session_state.quiz_feedback = "" # Limpa feedback anterior
+            st.session_state.quiz_answer_submitted = False # Reinicia o estado de submissão
+            # Não resetar last_result aqui, pois queremos manter a resposta principal visível.
 
-        if st.session_state.quiz_generated:
+        # Exibe os campos do quiz se estiverem visíveis
+        if st.session_state.quiz_visible:
             st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
             st.markdown(f"**Desafio do Avaliador:**
 
@@ -201,10 +205,11 @@ def main():
             if st.button("Enviar Resposta"):
                 if resposta_aluno:
                     # Instancia o avaliador para obter o feedback
-                    # Usa o modelo que foi usado para a resposta principal ou o fallback
+                    # Usa o modelo que respondeu à consulta principal ou o fallback
                     model_for_eval_display = res.used_model_display_name if res.used_model_display_name else st.session_state.selected_model_display_name
                     evaluator_model_id = Config.get_model_id(model_for_eval_display)
                     
+                    # Instancia o avaliador com a instrução correta
                     evaluator = TutorIAAgent("Avaliador", "Você é o 'Avaliador Pedagógico'. Dê feedback socrático.")
                     
                     with st.spinner("Avaliador analisando..."):
@@ -216,7 +221,8 @@ def main():
                         )
                     
                     st.session_state.quiz_feedback = feedback
-                    # Poderia resetar a pergunta para não re-exibir o mesmo desafio, ou ter um botão "Novo Desafio"
+                    st.session_state.quiz_answer_submitted = True # Marca que uma resposta foi enviada
+                    st.session_state.quiz_visible = False # Esconde campos de resposta após enviar
                 else:
                     st.warning("Por favor, digite uma resposta para o desafio.")
             

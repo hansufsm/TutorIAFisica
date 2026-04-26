@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from pypdf import PdfReader
 from PIL import Image
 from src.config import Config
+from src.utils.pcloud_manager import PCloudManager
 
 load_dotenv()
 
@@ -152,7 +153,7 @@ class PhysicsOrchestrator:
             try:
                 agent = self.agents[agent_name]
                 
-                # Configura variáveis de ambiente para LiteLLM, se chave foi fornecida runtime
+                # Configura variáveis de ambiente para LiteLLM com chaves runtime, se fornecidas
                 litellm_env = {}
                 if key_name and key_name in self.runtime_keys:
                     litellm_env[key_name] = self.runtime_keys[key_name]
