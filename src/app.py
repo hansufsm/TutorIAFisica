@@ -36,7 +36,7 @@ def extract_text_from_pdf(uploaded_file):
 
 def main():
     st.title("🌌 TutorIAFisica: Mentor Multi-Model")
-    st.caption("v4.3 | Seleção Flexível de Modelos com Fallback Automático e Gerenciamento de Chaves")
+    st.caption("v4.4 | Seleção Flexível de Modelos com Fallback e Gerenciamento de Chaves")
 
     # --- BARRA LATERAL ---
     with st.sidebar:
@@ -209,7 +209,6 @@ def main():
                     model_for_eval_display = res.used_model_display_name if res.used_model_display_name else st.session_state.selected_model_display_name
                     evaluator_model_id = Config.get_model_id(model_for_eval_display)
                     
-                    # Instancia o avaliador com a instrução correta
                     evaluator = TutorIAAgent("Avaliador", "Você é o 'Avaliador Pedagógico'. Dê feedback socrático.")
                     
                     with st.spinner("Avaliador analisando..."):

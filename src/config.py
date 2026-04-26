@@ -13,6 +13,7 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") # Para Claude
     PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
+    XAI_API_KEY = os.getenv("XAI_API_KEY") # Nova chave para Grok
     # Chave para modelo Manusc (se for um serviço externo, senão pode ser configurado de outra forma)
     MANUSC_API_KEY = os.getenv("MANUSC_API_KEY") 
 
@@ -32,7 +33,8 @@ class Config:
         "Claude 3 Opus": {"id": "claude/claude-3-opus", "multimodal": False},
         "Perplexity Online": {"id": "perplexity/online", "multimodal": False},
         "DeepSeek Chat": {"id": "deepseek/deepseek-chat", "multimodal": False},
-        "Manusc Model": {"id": "local/manusc-model", "multimodal": False} # Placeholder para modelo local/customizado
+        "Grok XL": {"id": "xai/grok-1", "multimodal": False}, # Novo modelo adicionado
+        "Manusc Model": {"id": "local/manusc-model", "multimodal": False} # Placeholder
     }
     
     # Ordem de preferência para fallback automático
@@ -67,6 +69,7 @@ class Config:
         if provider == "openai": return "OPENAI_API_KEY"
         if provider == "claude": return "ANTHROPIC_API_KEY"
         if provider == "perplexity": return "PERPLEXITY_API_KEY"
+        if provider == "xai": return "XAI_API_KEY" # Adicionado para Grok/XAI
         if provider == "local": return None # Modelos locais não usam chave API externa
         return f"{provider.upper()}_API_KEY" # Fallback genérico para outros provedores
 
