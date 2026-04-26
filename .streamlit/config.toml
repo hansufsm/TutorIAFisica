@@ -4,3 +4,10 @@ backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f0f2f6"
 textColor = "#31333f"
 font = "sans serif"
+
+[client]
+# LaTeX rendering using KaTeX (native Streamlit 1.30+ support)
+showErrorDetails = false
+
+[logger]
+level = "info"

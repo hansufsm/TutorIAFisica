@@ -12,16 +12,28 @@ st.set_page_config(page_title="TutorIAFisica - Multi-Model", layout="wide", page
 # Revisado para garantir a correta delimitação da string multi-linha e clareza.
 # O erro 'unterminated string literal' na linha 33 em execuções anteriores foi provavelmente devido a um detalhe de parsing.
 st.markdown("""
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+
     <style>
     /* Estilização Geral */
     .stApp { background-color: #ffffff; color: #31333f; }
-    
+
     /* Customização das bolhas de chat */
     .stChatMessage { border-radius: 15px; padding: 15px; margin-bottom: 15px; border: 1px solid #e6e9ef; }
-    
-    /* Cores das equações LaTeX */
-    .katex { font-size: 1.1em; color: #58a6ff; }
-    
+
+    /* KaTeX - não interferir com renderização */
+    .katex, .katex-html {
+        font-family: "Cambria Math", "KaTeX Gyre Termes", serif !important;
+        color: #0a0a0a !important;
+    }
+    .katex-display {
+        overflow-x: auto;
+        overflow-y: hidden;
+        margin: 0.5em 0 !important;
+    }
+
     /* Identidade visual por Agente (Bordas Laterais e Fundo da Mensagem) */
     /* Usando os nomes dos agentes como classes auxiliares ou seletor de nome */
     /* Nota: A seleção direta de st.chat_message é complexa, então aplicamos estilos gerais */
@@ -45,7 +57,7 @@ st.markdown("""
     .agent-visualizador { border-left: 8px solid #fd7e14; background-color: #fff9e9; } /* Laranja */
     .agent-curador { border-left: 8px solid #6f42c1; background-color: #f3f0f9; } /* Roxo */
     .agent-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; } /* Vermelho */
-    
+
     /* Scrollbar personalizada */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #0e1117; }
@@ -56,6 +68,12 @@ st.markdown("""
 def extract_text_from_pdf(uploaded_file):
     reader = PdfReader(uploaded_file)
     return " ".join([page.extract_text() + " " for page in reader.pages])
+
+def display_math_content(content: str):
+    """Exibe conteúdo com suporte melhorado a LaTeX/KaTeX."""
+    if not content:
+        return
+    st.markdown(content, unsafe_allow_html=True)
 
 def main():
     st.title("🌌 TutorIAFisica: Mentor Multi-Model")
@@ -198,7 +216,9 @@ def main():
         with tab1:
             st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True); st.write(res.pergunta_socratica); st.markdown('</div>', unsafe_allow_html=True)
         with tab2:
-            st.markdown('<div class="agent-box border-solucionador">', unsafe_allow_html=True); st.markdown(res.solution_steps); st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-solucionador">', unsafe_allow_html=True)
+            display_math_content(res.solution_steps)
+            st.markdown('</div>', unsafe_allow_html=True)
         with tab3:
             st.markdown('<div class="agent-box border-visualizador">', unsafe_allow_html=True); st.code(res.code_snippet, language="python"); st.markdown('</div>', unsafe_allow_html=True)
         with tab4:
