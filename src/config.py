@@ -20,21 +20,24 @@ class Config:
     # Modelos Disponíveis via LiteLLM
     # Mapeamento de nomes amigáveis para IDs de modelo LiteLLM e suas capacidades
     AVAILABLE_MODELS = {
+        "DeepSeek Chat": {"id": "deepseek/deepseek-chat", "multimodal": False},
+        "Grok 2 Vision": {"id": "xai/grok-2-vision-1212", "multimodal": True},
+        "Gemini 1.5 Flash": {"id": "gemini/gemini-1.5-flash", "multimodal": True},
+        "OpenAI GPT-3.5 Turbo": {"id": "openai/gpt-3.5-turbo", "multimodal": False},
         # "Gemini 2.5 Pro": {"id": "gemini/gemini-2.5-pro-preview-05-06", "multimodal": True},
         # "Gemini 2.0 Flash": {"id": "gemini/gemini-2.0-flash", "multimodal": True},
-        # "Gemini 1.5 Flash": {"id": "gemini/gemini-1.5-flash", "multimodal": True},
         # "Grok 3": {"id": "xai/grok-3", "multimodal": False},
-        # "Grok 2 Vision": {"id": "xai/grok-2-vision-1212", "multimodal": True},
-        "DeepSeek Chat": {"id": "deepseek/deepseek-chat", "multimodal": False},
         # "Claude 3.5 Sonnet": {"id": "anthropic/claude-3-5-sonnet-20241022", "multimodal": False},
         # "Claude 3 Haiku": {"id": "anthropic/claude-3-haiku-20240307", "multimodal": False},
-        # "OpenAI GPT-3.5 Turbo": {"id": "openai/gpt-3.5-turbo", "multimodal": False},
         # "Perplexity Sonar": {"id": "perplexity/llama-3.1-sonar-small-128k-online", "multimodal": False},
     }
 
     # Ordem de preferência para fallback automático
     MODEL_PREFERENCE_ORDER = [
         "DeepSeek Chat",
+        "Grok 2 Vision",
+        "Gemini 1.5 Flash",
+        "OpenAI GPT-3.5 Turbo",
     ]
 
     DEFAULT_MODEL_DISPLAY_NAME = "DeepSeek Chat"
