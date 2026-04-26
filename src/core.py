@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 from config import Config
 from utils.pcloud_manager import PCloudManager
+from utils.web_searcher import WebSearcher
 
 load_dotenv()
 
@@ -15,11 +16,20 @@ class PhysicsState:
     """Objeto de Estado do Problema (Design Pattern: State)."""
     def __init__(self, raw_input: str, teacher_notes: str = "", pcloud_url: str = "", image: Any = None):
         self.raw_input = raw_input
+        # Nível 1: Materiais do Professor
         self.professor_notes_text = teacher_notes
+        self.pcloud_repo_text = ""
+        # Nível 2: Documentos Adotados
+        self.adopted_docs_text = ""
+        # Nível 3: UFSM
+        self.ufsm_context = ""
+        # Nível 4: Portais .edu.br
+        self.web_edu_br_text = ""
+        # Nível 5: Referências Internacionais
+        self.intl_refs_text = ""
+        # Fora da hierarquia: Material do aluno (pCloud sessão)
         self.pcloud_url = pcloud_url
         self.pcloud_session_text = ""
-        self.pcloud_repo_text = ""
-        self.ufsm_context = ""
         self.image_input = image
 
         self.concepts = []
@@ -45,22 +55,30 @@ class PhysicsState:
         parts = [self.professor_notes_text, self.pcloud_session_text, self.pcloud_repo_text]
         return "\n\n".join([p for p in parts if p.strip()])
 
-    def sync_external_data(self, on_progress=None, repo_url: str = ""):
-        """Sincroniza dados de fontes externas (pCloud, Ementário UFSM)."""
+    def sync_external_data(self, on_progress=None, repo_url: str = "", adopted_url: str = ""):
+        """Sincroniza dados de fontes externas (pCloud, notas do professor)."""
         if on_progress: on_progress("📚 Verificando materiais...")
+        # Sessão: Material do aluno
         if self.pcloud_url:
             cloud_text = PCloudManager.fetch_notes(self.pcloud_url)
             if cloud_text:
                 self.pcloud_session_text = cloud_text
                 self.pcloud_notes_found = True
-                if on_progress: on_progress(f"☁️ pCloud sessão sincronizado ({len(cloud_text)} caracteres)")
+                if on_progress: on_progress(f"☁️ Material do aluno carregado ({len(cloud_text)} caracteres)")
             elif on_progress:
-                on_progress("ℹ️ pCloud: nenhum PDF encontrado")
+                on_progress("ℹ️ Material do aluno: nenhum PDF encontrado")
+        # Repositório: Nível 1 do professor
         if repo_url:
             repo_text = PCloudManager.fetch_notes(repo_url)
             if repo_text:
                 self.pcloud_repo_text = repo_text
-                if on_progress: on_progress(f"📦 Repositório carregado ({len(repo_text)} caracteres)")
+                if on_progress: on_progress(f"📦 Repositório do professor carregado ({len(repo_text)} caracteres)")
+        # Documentos Adotados: Nível 2
+        if adopted_url:
+            adopted_text = PCloudManager.fetch_notes(adopted_url)
+            if adopted_text:
+                self.adopted_docs_text = adopted_text
+                if on_progress: on_progress(f"📗 Documentos adotados carregados ({len(adopted_text)} caracteres)")
 
     def _check_ufsm_syllabus(self):
         """Busca match no ementário da UFSM baseado nos conceitos identificados."""
@@ -83,17 +101,85 @@ class PhysicsState:
             print(f"Erro ao consultar ementário UFSM: {e}")
 
     def build_context(self) -> str:
-        """Monta contexto priorizado com rótulos de fonte."""
+        """Monta contexto priorizado em 5 níveis com truncação por fonte."""
+        MAX_CHARS = {
+            1: 4000,   # Professor (notes + repo combined)
+            2: 2000,   # Documentos adotados
+            3: 600,    # UFSM
+            4: 1500,   # .edu.br
+            5: 1200,   # Internacional
+            "aluno": 2000,   # Material do aluno
+        }
+
         parts = []
-        if self.ufsm_context:
-            parts.append(f"### [EMENTA UFSM]\n{self.ufsm_context}")
+
+        # Nível 1 — Materiais do Professor (notas + repositório juntos)
+        prof_combined = []
         if self.professor_notes_text.strip():
-            parts.append(f"### [NOTAS DO PROFESSOR]\n{self.professor_notes_text}")
-        if self.pcloud_session_text.strip():
-            parts.append(f"### [MATERIAL DO ALUNO - pCloud]\n{self.pcloud_session_text}")
+            prof_combined.append(self.professor_notes_text.strip())
         if self.pcloud_repo_text.strip():
-            parts.append(f"### [REPOSITÓRIO DE MATERIAIS]\n{self.pcloud_repo_text}")
+            prof_combined.append(self.pcloud_repo_text.strip())
+        if prof_combined:
+            prof_text = "\n\n".join(prof_combined)[:MAX_CHARS[1]]
+            parts.append(f"### [NOTAS DO PROFESSOR]\n{prof_text}")
+
+        # Nível 2 — Documentos Adotados
+        if self.adopted_docs_text.strip():
+            adopted_text = self.adopted_docs_text.strip()[:MAX_CHARS[2]]
+            parts.append(f"### [DOCUMENTOS ADOTADOS]\n{adopted_text}")
+
+        # Nível 3 — UFSM Ementário
+        if self.ufsm_context:
+            ufsm_text = self.ufsm_context[:MAX_CHARS[3]]
+            parts.append(f"### [EMENTA UFSM]\n{ufsm_text}")
+
+        # Nível 4 — Portais Acadêmicos .edu.br
+        if self.web_edu_br_text.strip():
+            edu_br_text = self.web_edu_br_text.strip()[:MAX_CHARS[4]]
+            parts.append(f"### [PORTAIS ACADÊMICOS .edu.br]\n{edu_br_text}")
+
+        # Nível 5 — Referências Internacionais
+        if self.intl_refs_text.strip():
+            intl_text = self.intl_refs_text.strip()[:MAX_CHARS[5]]
+            parts.append(f"### [REFERÊNCIAS INTERNACIONAIS]\n{intl_text}")
+
+        # Extra — Material do Aluno (pCloud sessão, fora da hierarquia)
+        if self.pcloud_session_text.strip():
+            aluno_text = self.pcloud_session_text.strip()[:MAX_CHARS["aluno"]]
+            parts.append(f"### [MATERIAL DO ALUNO]\n{aluno_text}")
+
         return "\n\n".join(parts)
+
+    def sync_web_sources(self, on_progress=None) -> bool:
+        """Busca fontes web com base nos conceitos identificados pelo Intérprete."""
+        if not self.concepts:
+            return False
+
+        topic = " ".join(self.concepts[:3])  # Usar primeiros 3 conceitos
+
+        if on_progress:
+            on_progress("🌐 Buscando em portais acadêmicos .edu.br...")
+        self.web_edu_br_text = WebSearcher.search_edu_br(topic, max_results=3)
+
+        if on_progress:
+            on_progress("🔬 Consultando arXiv e Semantic Scholar...")
+        arxiv_results = WebSearcher.search_arxiv(topic, max_results=3)
+        scholar_results = WebSearcher.search_semantic_scholar(topic, max_results=3)
+
+        # Combinar resultados das duas APIs internacionais
+        intl_results = []
+        if arxiv_results:
+            intl_results.append(f"**arXiv:**\n{arxiv_results}")
+        if scholar_results:
+            intl_results.append(f"**Semantic Scholar:**\n{scholar_results}")
+
+        if intl_results:
+            self.intl_refs_text = "\n\n".join(intl_results)
+            if on_progress:
+                on_progress(f"✅ {len(intl_results)} fontes internacionais encontradas")
+            return True
+
+        return False
 
 class TutorIAAgent:
     """Classe base para todos os agentes de IA."""
@@ -146,7 +232,7 @@ class PhysicsOrchestrator:
         self.used_model_display_name: Optional[str] = None
         self.fallback_occurred: bool = False
 
-        source_attribution = "Ao usar informações do MATERIAL DE REFERÊNCIA, cite a fonte: **[Ementa UFSM]**, **[Notas do Professor]**, **[Material do Aluno]** ou **[Repositório]**. Conhecimento próprio: **[Modelo de IA]**."
+        source_attribution = "Ao usar informações do MATERIAL DE REFERÊNCIA, cite a fonte: **[Notas do Professor]**, **[Documentos Adotados]**, **[Ementa UFSM]**, **[Portais .edu.br]**, **[Referências Internacionais]**, **[Material do Aluno]** ou **[Modelo de IA]**."
         self.agents = {
             "interpreter": TutorIAAgent("Intérprete", f"Você é um professor socrático. Identifique conceitos e crie perguntas reflexivas. {source_attribution}"),
             "solver": TutorIAAgent("Matemático", f"Resolva com LaTeX e rigor. {source_attribution}"),
@@ -213,22 +299,26 @@ class PhysicsOrchestrator:
 
         return f"Erro: Todos os modelos falharam. Último erro: {last_error_message}", None, True
 
-    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", repo_url: str = "", image: Any = None, on_progress=None):
-        """Executa o pipeline de agentes com fallback automático."""
+    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", repo_url: str = "", adopted_url: str = "", enable_web_search: bool = True, image: Any = None, on_progress=None):
+        """Executa o pipeline de agentes com fallback automático e busca web opcional."""
 
         state = PhysicsState(input_data, teacher_notes, pcloud_url, image)
 
         # Debug: Log material sources
         if on_progress:
-            on_progress(f"📚 Fontes identificadas:")
+            on_progress(f"📚 Fontes fornecidas:")
             if teacher_notes.strip():
                 on_progress(f"  📄 Notas do professor: {len(teacher_notes)} caracteres")
-            if pcloud_url:
-                on_progress(f"  ☁️ Link pCloud sessão fornecido")
             if repo_url:
-                on_progress(f"  📦 Repositório permanente fornecido")
+                on_progress(f"  📦 Repositório do professor fornecido")
+            if adopted_url:
+                on_progress(f"  📗 Documentos adotados fornecidos")
+            if pcloud_url:
+                on_progress(f"  ☁️ Material do aluno fornecido")
+            if enable_web_search:
+                on_progress(f"  🌐 Busca web habilitada")
 
-        state.sync_external_data(on_progress=on_progress, repo_url=repo_url)
+        state.sync_external_data(on_progress=on_progress, repo_url=repo_url, adopted_url=adopted_url)
 
         # --- Execução sequencial dos agentes com fallback ---
 
@@ -249,7 +339,12 @@ class PhysicsOrchestrator:
 
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
-        # Atualizar contexto após identificar disciplina UFSM
+        # Busca web baseada nos conceitos identificados (opcional, pode ser lento)
+        if enable_web_search:
+            if on_progress: on_progress("🌐 Consultando fontes web (portais .edu.br, arXiv, Semantic Scholar)...")
+            state.sync_web_sources(on_progress=on_progress)
+
+        # Atualizar contexto após identificar disciplina UFSM e buscar web sources
         context = state.build_context() if state.build_context() else ""
         if on_progress and context:
             on_progress(f"✅ Contexto montado: {len(context)} caracteres com {context.count('[') // 2} fontes")

@@ -165,6 +165,16 @@ def main():
         pcloud_repo_url = st.text_input("Link pCloud Repositório (Professor):", key="pcloud_repo_url", placeholder="https://u.pcloud.com/#/publink?code=...")
         st.caption("Link fixo da pasta com todos os PDFs do professor. O sistema busca materiais relevantes automaticamente.")
 
+        st.divider()
+        st.header("📗 Documentos Adotados")
+        adopted_docs_url = st.text_input("Link pCloud Documentos Adotados:", key="adopted_docs_url", placeholder="https://u.pcloud.com/#/publink?code=...")
+        st.caption("Livros e materiais adotados na disciplina. Pode ser pCloud ou URL direta de PDF.")
+
+        st.divider()
+        st.header("🌐 Busca Web Inteligente")
+        web_search_enabled = st.checkbox("Habilitar busca em portais .edu.br e arXiv", value=True, key="web_search_toggle")
+        st.caption("⚠️ A busca web pode adicionar 10-15 segundos ao tempo de análise. Desabilite se desejar respostas mais rápidas.")
+
     # --- ENTRADA DO ALUNO ---
     enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: Explique a conservação de energia em um sistema...")
 
@@ -184,9 +194,11 @@ def main():
             with st.status("🔍 Verificando materiais de entrada...", expanded=False) as debug_status:
                 st.write(f"📝 Enunciado: {len(enunciado)} caracteres")
                 st.write(f"📄 Notas do professor: {len(manual_notes)} caracteres")
-                st.write(f"☁️ Link pCloud: {'✓ Fornecido' if pcloud_url else '✗ Não fornecido'}")
-                st.write(f"📦 Repositório permanente: {'✓ Fornecido' if pcloud_repo_url else '✗ Não fornecido'}")
-                st.write(f"📷 Imagem: {'✓ Fornecida' if input_image else '✗ Não fornecida'}")
+                st.write(f"📦 Repositório: {'✓' if pcloud_repo_url else '✗'}")
+                st.write(f"📗 Documentos adotados: {'✓' if adopted_docs_url else '✗'}")
+                st.write(f"☁️ Material do aluno: {'✓' if pcloud_url else '✗'}")
+                st.write(f"🌐 Busca web: {'Habilitada' if web_search_enabled else 'Desabilitada'}")
+                st.write(f"📷 Imagem: {'✓' if input_image else '✗'}")
             
             # Instancia o Orchestrator com o modelo selecionado pelo usuário e chaves runtime
             orchestrator = PhysicsOrchestrator(
@@ -202,7 +214,16 @@ def main():
                  st.warning(f"Chave API para o modelo selecionado '{st.session_state.selected_model_display_name}' não encontrada. O sistema tentará modelos alternativos.")
 
             with st.status("🔄 Iniciando análise...", expanded=True) as status:
-                res = orchestrator.run(enunciado, manual_notes, pcloud_url, repo_url=pcloud_repo_url, image=img_obj, on_progress=st.write)
+                res = orchestrator.run(
+                    enunciado,
+                    manual_notes,
+                    pcloud_url,
+                    repo_url=pcloud_repo_url,
+                    adopted_url=adopted_docs_url,
+                    enable_web_search=web_search_enabled,
+                    image=img_obj,
+                    on_progress=st.write
+                )
                 st.session_state.last_result = res
 
                 if res.fallback_occurred:
@@ -213,20 +234,44 @@ def main():
                     st.error("Não foi possível obter uma resposta de nenhum modelo disponível.")
 
                 st.divider()
-                st.subheader("📊 Fontes Utilizadas")
+                st.subheader("📊 Fontes Utilizadas (Hierarquia)")
                 sources_used = []
-                if res.ufsm_context:
-                    st.write("📘 **Ementa UFSM** localizada e utilizada")
-                    sources_used.append("UFSM")
+
+                # Nível 1
+                prof_combined = []
                 if res.professor_notes_text.strip():
-                    st.write("📄 **Notas do Professor** incorporadas")
-                    sources_used.append("Professor")
-                if res.pcloud_session_text.strip():
-                    st.write("☁️ **Material do Aluno** (pCloud) carregado")
-                    sources_used.append("Aluno")
+                    prof_combined.append("Notas do Professor")
                 if res.pcloud_repo_text.strip():
-                    st.write("📦 **Repositório Permanente** consultado")
-                    sources_used.append("Repositório")
+                    prof_combined.append("Repositório")
+                if prof_combined:
+                    st.write(f"**1️⃣ Materiais do Professor:** {' + '.join(prof_combined)}")
+                    sources_used.append("Professor")
+
+                # Nível 2
+                if res.adopted_docs_text.strip():
+                    st.write("**2️⃣ Documentos Adotados** incorporados")
+                    sources_used.append("Adotados")
+
+                # Nível 3
+                if res.ufsm_context:
+                    st.write("**3️⃣ Ementa UFSM** localizada e utilizada")
+                    sources_used.append("UFSM")
+
+                # Nível 4
+                if res.web_edu_br_text.strip():
+                    st.write("**4️⃣ Portais Acadêmicos .edu.br** consultados")
+                    sources_used.append(".edu.br")
+
+                # Nível 5
+                if res.intl_refs_text.strip():
+                    st.write("**5️⃣ Referências Internacionais** (arXiv/Semantic Scholar)")
+                    sources_used.append("Internacional")
+
+                # Fora da hierarquia
+                if res.pcloud_session_text.strip():
+                    st.write("☁️ **Material do Aluno** incorporado")
+                    sources_used.append("Aluno")
+
                 if not sources_used:
                     st.info("✨ Resposta gerada pelo **Modelo de IA** (sem materiais de referência)")
 
