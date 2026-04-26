@@ -1,0 +1,145 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+**TutorIAFisica** is an AI-powered academic tutoring system for physics education at the university level. It orchestrates multiple specialized AI agents that work together through a shared state object to provide comprehensive explanations, mathematical solutions, visualizations, and formative assessment.
+
+The system is built with **Streamlit** for the UI and **LiteLLM** for flexible model orchestration across multiple providers (Gemini, Claude, OpenAI, DeepSeek, Perplexity, Grok).
+
+## High-Level Architecture
+
+### Design Pattern: Agent Orchestration with Shared State
+
+The system follows a **Pipeline + State Pattern** where:
+
+1. **PhysicsState** (`src/core.py`): A single mutable state object that flows through the pipeline. It starts with user input and accumulates results from each agent (concepts, solution, code, etc.).
+
+2. **Agent Pipeline**: Sequential agents process the problem:
+   - **Interpreter**: Initial reasoning and physics domain classification
+   - **Solver**: Mathematical rigor and SI unit consistency
+   - **Visualizer**: Python visualization code generation
+   - **Curator**: Real-world data enrichment and academic sourcing
+   - **Evaluator**: Formative assessment via Socratic questioning
+
+3. **PhysicsOrchestrator** (`src/core.py`): Coordinates the pipeline, validates outputs between agents, handles fallback logic, and tracks which model was actually used.
+
+### Key Components
+
+- **app.py**: Streamlit UI. Handles sidebar configuration, model/API key selection, image upload logic, and display of agent outputs with color-coded styling.
+- **config.py**: Centralized configuration including:
+  - `AVAILABLE_MODELS`: Maps friendly names to LiteLLM model IDs and capabilities (multimodal flag)
+  - `MODEL_PREFERENCE_ORDER`: Fallback chain when the primary model fails
+  - `get_provider_key_name()`: Maps model names to environment variable keys
+  - `is_model_multimodal()`: Determines if image input should be enabled
+- **core.py**: 
+  - `TutorIAAgent`: Base class for all agents. Uses `litellm.completion()` for unified API calls and handles image encoding for multimodal models.
+  - `PhysicsState`: Accumulates problem context and results
+  - `PhysicsOrchestrator`: Runs the pipeline and implements fallback by catching `RateLimitError`, `AuthenticationError`, and `APIError`
+- **utils/pcloud_manager.py**: Cloud storage integration for fetching teacher notes from pCloud (uses public link extraction and PDF processing via `requests` + `io.BytesIO`)
+
+### API Key & Fallback Flow
+
+1. **Sidebar Model Selection**: User picks a preferred model in `app.py`
+2. **Key Management**: 
+   - First checks `.env` (via `dotenv` in `config.py`)
+   - If key missing, prompts for runtime input via `st.text_input()`
+   - Passes API key to agent via the `api_key` parameter in `TutorIAAgent.ask()`
+3. **Automatic Fallback**:
+   - If selected model fails, orchestrator tries the next in `MODEL_PREFERENCE_ORDER`
+   - User sees notification when fallback occurs
+   - State tracks `used_model_display_name` and `fallback_occurred`
+
+### Multimodal Handling
+
+- Image upload is enabled/disabled based on `Config.is_model_multimodal(selected_model)`
+- If user provides an image to a text-only model, a warning is logged but processing continues without the image
+- Images are encoded as base64 JPEG in the message structure for multimodal models
+
+## Running the Application
+
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Ensure .env exists with API keys (see README for keys needed)
+cat > .env << EOF
+GEMINI_API_KEY=your_key
+OPENAI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
+# ... other keys
+EOF
+
+# Run the Streamlit app
+cd src
+streamlit run app.py
+```
+
+The app starts on `http://localhost:8501` by default.
+
+## Code Execution Context
+
+- **Working Directory**: When running `streamlit run app.py`, the working directory is `src/`, so imports like `from config import Config` work directly.
+- **Environment**: Uses `.env` file at project root (loaded via `python-dotenv`)
+- **Session State**: Streamlit's `st.session_state` persists model selection and runtime API keys within a session
+
+## Extending the System
+
+### Adding a New Model
+
+1. Update `Config.AVAILABLE_MODELS` in `config.py`:
+   ```python
+   "MyModel": {"id": "provider/model-id", "multimodal": True/False}
+   ```
+
+2. If it's a new provider, add the key name handling in `Config.get_provider_key_name()` and ensure the `.env` template documents it.
+
+3. If fallback order matters, insert into `Config.MODEL_PREFERENCE_ORDER`.
+
+### Adding a New Agent
+
+1. Create an agent class in `src/` or `src/agents/`:
+   ```python
+   class MyAgent(TutorIAAgent):
+       def __init__(self):
+           super().__init__(
+               name="MyAgent",
+               system_instruction="Your specialized instructions..."
+           )
+   ```
+
+2. In `PhysicsOrchestrator.process()`, instantiate and call:
+   ```python
+   agent = MyAgent()
+   result = agent.ask(prompt, context=state.solution_steps, model_id=model_id, api_key=api_key)
+   state.my_field = result
+   ```
+
+3. Ensure the agent handles images appropriately based on the model's multimodal capability.
+
+## Important Invariants
+
+- **State Accumulation**: Each agent in the pipeline reads from `PhysicsState` (prior results) and writes to it. Don't bypass this pattern—it enables debugging and supports formative feedback loops.
+- **LiteLLM Errors**: Catch `RateLimitError`, `AuthenticationError`, and `APIError` for fallback logic. Other exceptions are unrecoverable.
+- **Multimodal Images**: Always check `Config.is_model_multimodal()` before including images in the message. Base64 encoding is handled by `TutorIAAgent.ask()`.
+- **API Keys**: Never hardcode API keys. Always read from `.env` first, then offer runtime input via Streamlit UI for missing keys.
+
+## Debugging Tips
+
+- Check `PhysicsState.used_model_display_name` and `fallback_occurred` to see which model actually ran
+- Print agent outputs in the orchestrator loop to trace where the pipeline fails
+- Use Streamlit's `st.write()` or `st.json()` to inspect state during development
+- Watch for multimodal image encoding errors if models are switched—test with both text and image inputs
+
+## Dependencies
+
+Core dependencies in `requirements.txt`:
+- `streamlit`: UI framework
+- `litellm`: Unified LLM API abstraction
+- `python-dotenv`: Environment variable loading
+- `pypdf`: PDF text extraction
+- `matplotlib`, `plotly`: Visualization libraries
+- `Pillow`: Image handling
+- `pandas`: Data processing
+- `requests`: HTTP calls (for pCloud)
