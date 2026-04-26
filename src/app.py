@@ -4,11 +4,12 @@ import time
 from PIL import Image
 from pypdf import PdfReader
 from src.core import PhysicsOrchestrator
+from src.config import Config
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="TutorIAFisica v3.5", layout="wide", page_icon="🌌")
 
-# --- ESTILIZAÇÃO CSS (Design Project) ---
+# --- ESTILIZAÇÃO CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; color: #31333f; }
@@ -28,16 +29,27 @@ def extract_text_from_pdf(uploaded_file):
 
 def main():
     st.title("🌌 TutorIAFisica: Mentor Acadêmico")
-    st.caption("Versão 3.5 | Compliance & Modular Design")
+    st.caption("v3.5 | Suporte Multi-Model (Gemini & DeepSeek via LiteLLM)")
 
     # --- BARRA LATERAL ---
     with st.sidebar:
+        st.header("🤖 Configurações de IA")
+        model_choice = st.radio(
+            "Escolha o Motor de Inteligência:",
+            ["Gemini 2.0 (Padrão)", "DeepSeek (Reserva)"],
+            help="Alterne para o DeepSeek se os créditos do Google terminarem."
+        )
+        
+        selected_model = Config.PRIMARY_MODEL if "Gemini" in model_choice else Config.FALLBACK_MODEL
+        st.info(f"Modelo Ativo: `{selected_model}`")
+
+        st.divider()
         st.header("☁️ Repositório Cloud")
         pcloud_url = st.text_input("Link Público pCloud:", placeholder="https://u.pcloud.link/...")
         
         st.divider()
         st.header("📸 Entrada Visual")
-        input_image = st.file_uploader("Foto do Exercício", type=["jpg", "png"])
+        input_image = st.file_uploader("Foto do Exercício (Apenas Gemini)", type=["jpg", "png"])
         if input_image:
             st.image(input_image, caption="Imagem carregada", use_container_width=True)
 
@@ -54,10 +66,11 @@ def main():
 
     if st.button("🚀 Iniciar Análise do Esquadrão"):
         if enunciado or input_image:
-            orchestrator = PhysicsOrchestrator()
+            # Inicializa orquestrador com o modelo selecionado
+            orchestrator = PhysicsOrchestrator(model_override=selected_model)
             img_obj = Image.open(input_image) if input_image else None
             
-            with st.status("Ativando agentes e sincronizando dados...", expanded=True) as status:
+            with st.status(f"Ativando agentes via {model_choice}...", expanded=True) as status:
                 res = orchestrator.run(enunciado, manual_notes, pcloud_url, img_obj)
                 st.session_state.result = res
                 status.update(label="Análise Concluída!", state="complete", expanded=False)
@@ -95,7 +108,9 @@ def main():
         st.markdown(res.quiz_question)
         ans = st.text_input("Sua resposta:")
         if st.button("Avaliar"):
-            feedback = orchestrator.agents["evaluator"].ask(ans, res.quiz_question)
+            # Usa o mesmo modelo para avaliação
+            evaluator_orchestrator = PhysicsOrchestrator(model_override=selected_model)
+            feedback = evaluator_orchestrator.agents["evaluator"].ask(ans, res.quiz_question)
             st.info(f"🗨️ Feedback: {feedback}")
         st.markdown('</div>', unsafe_allow_html=True)
 
