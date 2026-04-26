@@ -1,11 +1,9 @@
 import streamlit as st
-from core import PhysicsOrchestrator, Evaluator
-import time
+from core import PhysicsOrchestrator, TutorIAAgent
 from pypdf import PdfReader
-import io
 import os
 from PIL import Image
-from config import Config # Importa Config para acessar modelos e chaves
+from config import Config
 from typing import Dict, Any, Optional
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -58,9 +56,7 @@ st.markdown("""
 
 def extract_text_from_pdf(uploaded_file):
     reader = PdfReader(uploaded_file)
-    return "
-".join([page.extract_text() + "
-" for page in reader.pages])
+    return " ".join([page.extract_text() + " " for page in reader.pages])
 
 def main():
     st.title("🌌 TutorIAFisica: Mentor Multi-Model")
@@ -121,11 +117,6 @@ def main():
             st.warning("O modelo selecionado não suporta entrada de imagem. O upload de foto será ignorado.")
 
         st.divider()
-        st.header("☁️ Repositório Cloud")
-        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.link/...")
-        st.caption("Crie um Link Público no pCloud e cole aqui para sincronizar PDFs.")
-
-        st.divider()
         st.header("👨‍🏫 Notas Manuais")
         uploaded_file = st.file_uploader("Upload extra (PDF/TXT)", type=["pdf", "txt"])
         manual_notes = ""
@@ -135,6 +126,18 @@ def main():
             else:
                 manual_notes = uploaded_file.read().decode("utf-8")
             st.info("Notas manuais carregadas.")
+
+        st.divider()
+        st.header("📷 Entrada de Imagem")
+        if model_is_multimodal:
+            input_image = st.file_uploader("Upload de Imagem (foto do problema):", type=["png", "jpg", "jpeg", "webp"])
+        else:
+            input_image = None
+
+        st.divider()
+        st.header("☁️ Repositório Cloud")
+        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.com/#/puplink?code=YwnXZ5JRkIVuJIKjhmWtlGzorl0jp6UeX")
+        st.caption("Crie um Link Público no pCloud e cole aqui para sincronizar PDFs.")
 
     # --- ENTRADA DO ALUNO ---
     enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: Explique a conservação de energia em um sistema...")
@@ -223,9 +226,7 @@ def main():
         # Exibe os campos do quiz se estiverem visíveis
         if st.session_state.quiz_visible:
             st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
-            st.markdown(f"**Desafio do Avaliador:**
-
-{st.session_state.quiz_question}")
+            st.markdown(f"**Desafio do Avaliador:**{st.session_state.quiz_question}")
             
             resposta_aluno = st.text_input("Sua resposta:", key="student_answer_input")
             
@@ -254,9 +255,7 @@ def main():
             
             # Exibe o feedback se houver
             if st.session_state.quiz_feedback:
-                st.info(f"🗨️ **Feedback:**
-
-{st.session_state.quiz_feedback}")
+                st.info(f"🗨️ **Feedback:**{st.session_state.quiz_feedback}")
                 # Botão para pedir um novo desafio (resetando o estado do quiz)
                 if st.button("Pedir Novo Desafio"):
                     st.session_state.quiz_generated = False

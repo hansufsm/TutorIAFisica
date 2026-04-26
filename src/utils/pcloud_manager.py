@@ -1,7 +1,7 @@
 import requests
 import io
 from pypdf import PdfReader
-from src.config import Config
+from config import Config
 
 class PCloudManager:
     @staticmethod

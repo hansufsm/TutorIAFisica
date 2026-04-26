@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from config import Config; from core import PhysicsOrchestrator, TutorIAAgent; print\\('✓ All imports work'\\); print\\(f'✓ Default model: {Config.DEFAULT_MODEL_DISPLAY_NAME}'\\); print\\(f'✓ Grok 3 configured: {\\\\\"Grok 3\\\\\" in Config.AVAILABLE_MODELS}'\\)\")",
+      "Bash(python -c \"from config import Config; from core import PhysicsOrchestrator, TutorIAAgent; print\\('✓ All imports work'\\); print\\(f'✓ Default model: {Config.DEFAULT_MODEL_DISPLAY_NAME}'\\); print\\(f'✓ Grok 3 configured: {\\\\\"Grok 3\\\\\" in Config.AVAILABLE_MODELS}'\\); print\\(f'✓ Total models: {len\\(Config.AVAILABLE_MODELS\\)}'\\)\")"
+    ]
+  }
+}

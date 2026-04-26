@@ -1,14 +1,13 @@
 import os
-import time
 import json
+import time
+import base64
+import io
 import litellm
-import streamlit as st
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from dotenv import load_dotenv
-from pypdf import PdfReader
-from PIL import Image
-from src.config import Config
-from src.utils.pcloud_manager import PCloudManager
+from config import Config
+from utils.pcloud_manager import PCloudManager
 
 load_dotenv()
 
@@ -41,9 +40,7 @@ class PhysicsState:
         """Sincroniza dados de fontes externas (pCloud, Ementário UFSM)."""
         cloud_text = PCloudManager.fetch_notes(self.pcloud_url)
         if cloud_text:
-            self.teacher_notes = (self.teacher_notes + "
-
-" + cloud_text).strip()
+            self.teacher_notes = (self.teacher_notes + "\n\n" + cloud_text).strip()
             self.pcloud_notes_found = True
         self._check_ufsm_syllabus()
 
@@ -68,27 +65,30 @@ class TutorIAAgent:
         self.name = name
         self.system_instruction = system_instruction
 
-    def ask(self, prompt: str, context: str = "", image: Any = None, model_id: str = None) -> str:
+    def ask(self, prompt: str, context: str = "", image: Any = None, model_id: str = None, api_key: str = None) -> str:
         """Realiza a chamada para o LLM usando LiteLLM com o modelo especificado."""
         if not model_id:
-            model_id = Config.get_model_id(Config.DEFAULT_MODEL_DISPLAY_NAME) 
+            model_id = Config.get_model_id(Config.DEFAULT_MODEL_DISPLAY_NAME)
             print(f"Aviso: Nenhum model_id especificado, usando padrão {model_id}")
 
         messages = [
-            {"role": "system", "content": f"{self.system_instruction}
-CONTEXTO: {context}"},
+            {"role": "system", "content": f"{self.system_instruction}\nCONTEXTO: {context}"},
             {"role": "user", "content": prompt}
         ]
 
-        # Tratamento de entrada multimodal
         if image and Config.is_model_multimodal(Config.get_model_display_name_by_id(model_id)):
-            messages[1]["content"] = [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": image}]
+            buf = io.BytesIO()
+            image.save(buf, format="JPEG")
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            messages[1]["content"] = [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+            ]
         elif image and not Config.is_model_multimodal(Config.get_model_display_name_by_id(model_id)):
             print(f"[!] Aviso: Imagem fornecida, mas modelo '{model_id}' não é multimodal.")
-            # O modelo de texto puro simplesmente ignorará a imagem.
 
         try:
-            response = litellm.completion(model=model_id, messages=messages)
+            response = litellm.completion(model=model_id, messages=messages, api_key=api_key)
             return response.choices[0].message.content
         except litellm.RateLimitError as e:
             raise RuntimeError(f"Rate limit exceeded for {model_id}: {e}") from e
@@ -152,18 +152,14 @@ class PhysicsOrchestrator:
 
             try:
                 agent = self.agents[agent_name]
-                
-                # Configura variáveis de ambiente para LiteLLM com chaves runtime, se fornecidas
-                litellm_env = {}
-                if key_name and key_name in self.runtime_keys:
-                    litellm_env[key_name] = self.runtime_keys[key_name]
-                
-                # Chama o agente com o modelo específico
-                response_text = agent.ask(prompt, context=context, image=image, model_id=current_model_id)
-                
+
+                api_key = self.runtime_keys.get(key_name) or os.getenv(key_name) if key_name else None
+
+                response_text = agent.ask(prompt, context=context, image=image, model_id=current_model_id, api_key=api_key)
+
                 if response_text and "ERRO" not in response_text and "Erro na API" not in response_text:
-                    # Sucesso! Retorna a resposta, nome do modelo e indica que não houve fallback (ainda)
-                    return response_text, model_display_name, False
+                    is_fallback = (model_display_name != self.selected_model_display_name)
+                    return response_text, model_display_name, is_fallback
                 else:
                     last_error_message = f"Model {model_display_name} ({current_model_id}) returned an error: {response_text}"
                     print(f"[*] {last_error_message}")
@@ -179,23 +175,19 @@ class PhysicsOrchestrator:
 
         return f"Erro: Todos os modelos falharam. Último erro: {last_error_message}", None, True
 
-    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", image: Any = None, selected_model_display_name: str = Config.DEFAULT_MODEL_DISPLAY_NAME, runtime_keys: Dict[str, str] = {}):
+    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", image: Any = None):
         """Executa o pipeline de agentes com fallback automático."""
-        
+
         state = PhysicsState(input_data, teacher_notes, pcloud_url, image)
         state.sync_external_data()
-        
-        used_model_name = None
-        fallback_occurred = False
-        
+
         # --- Execução sequencial dos agentes com fallback ---
         
         # Intérprete
         response, model_name_used_int, fb_int = self._attempt_model_call("interpreter", input_data, state.teacher_notes, image)
         state.pergunta_socratica = response
         if "," in response:
-            state.concepts = [c.strip() for c in response.split("
-")[0].split(",")]
+            state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
         else:
             state.concepts = ["Física Geral"]
         state._check_ufsm_syllabus()
@@ -222,9 +214,7 @@ class PhysicsOrchestrator:
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Curador
-        combined_context = f"{state.teacher_notes}
-        
-ALINHAMENTO UFSM: {state.ufsm_alignment['nome'] if state.ufsm_alignment else 'N/A'}"
+        combined_context = f"{state.teacher_notes}\n\nALINHAMENTO UFSM: {state.ufsm_alignment['nome'] if state.ufsm_alignment else 'N/A'}"
         response, model_name_curator, fb_curator = self._attempt_model_call("curator", input_data, combined_context, image)
         state.mapa_mental_markdown = response
         if fb_curator: state.fallback_occurred = True
@@ -245,8 +235,7 @@ if __name__ == "__main__":
     print("--- TESTE CORE: Seleção de Modelo e Fallback ---")
     
     # Teste 1: Simular seleção manual de um modelo que pode ter chave ausente (ex: Gemini 3.0 Preview se GEMINI_API_KEY não estiver no .env)
-    print("
-Tentando modelo selecionado (Gemini 3.0 Preview) com fallback automático...")
+    print("\nTentando modelo selecionado (Gemini 3.0 Preview) com fallback automático...")
     try:
         # Simula que GEMINI_API_KEY está ausente, mas OPENAI_API_KEY está presente.
         # Em um teste real, você ajustaria as variáveis de ambiente ou passaria runtime_keys.
@@ -273,9 +262,8 @@ Tentando modelo selecionado (Gemini 3.0 Preview) com fallback automático...")
         test_prompt = "Explique a conservação de energia."
         
         result = orchestrator_test.run(test_prompt, selected_model_display_name=selected_model_display_for_test, runtime_keys=simulated_runtime_keys)
-        
-        print(f"
---- RESULTADO DO TESTE ---")
+
+        print(f"\n--- RESULTADO DO TESTE ---")
         print(f"Modelo utilizado: {result.used_model_display_name}")
         print(f"Fallback ocorreu: {result.fallback_occurred}")
         print(f"Resposta Socrática: {result.pergunta_socratica[:150]}...")
@@ -288,6 +276,4 @@ Tentando modelo selecionado (Gemini 3.0 Preview) com fallback automático...")
         if original_openai_key: os.environ["OPENAI_API_KEY"] = original_openai_key
         if original_deepseek_key: os.environ["DEEPSEEK_API_KEY"] = original_deepseek_key # Se também foi manipulada
 
-
-    print("
---- TESTE CORE FINALIZADO ---")
+    print("\n--- TESTE CORE FINALIZADO ---")
