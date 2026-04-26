@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 import litellm
-import streamlit as st # Necessário para st.text_input em app.py
+import streamlit as st
 from typing import List, Dict, Any, Optional
 
 load_dotenv()

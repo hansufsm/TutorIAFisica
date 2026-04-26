@@ -2,7 +2,7 @@ import os
 import time
 import json
 import litellm
-import streamlit as st # Necessário para st.text_input em app.py
+import streamlit as st
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from pypdf import PdfReader
@@ -26,7 +26,11 @@ class PhysicsState:
         self.mapa_mental_markdown = ""
         self.ufsm_alignment = None 
         self.pcloud_notes_found = False
-        self.quiz_question = ""
+        
+        # Campos de Avaliação Formativa
+        self.quiz_question: str = ""
+        self.quiz_answer_submitted: bool = False
+        self.quiz_feedback: str = ""
 
         # Informações de fallback e modelo utilizado
         self.used_model_display_name: Optional[str] = None
@@ -66,7 +70,6 @@ class TutorIAAgent:
     def ask(self, prompt: str, context: str = "", image: Any = None, model_id: str = None) -> str:
         """Realiza a chamada para o LLM usando LiteLLM com o modelo especificado."""
         if not model_id:
-            # Deve ser resolvido pela orquestração, mas como fallback:
             model_id = Config.get_model_id(Config.DEFAULT_MODEL_DISPLAY_NAME) 
             print(f"Aviso: Nenhum model_id especificado, usando padrão {model_id}")
 
@@ -78,10 +81,7 @@ CONTEXTO: {context}"},
 
         # Tratamento de entrada multimodal
         if image and Config.is_model_multimodal(Config.get_model_display_name_by_id(model_id)):
-            messages[1]["content"] = [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": image}
-            ]
+            messages[1]["content"] = [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": image}]
         elif image and not Config.is_model_multimodal(Config.get_model_display_name_by_id(model_id)):
             print(f"[!] Aviso: Imagem fornecida, mas modelo '{model_id}' não é multimodal.")
             # O modelo de texto puro simplesmente ignorará a imagem.
@@ -121,7 +121,16 @@ class PhysicsOrchestrator:
         models_to_try_display_names = Config.MODEL_PREFERENCE_ORDER
         last_error_message = "Nenhum modelo testado com sucesso."
         
-        for model_display_name in models_to_try_display_names:
+        # Determina a ordem de modelos a tentar, priorizando o selecionado pelo usuário
+        preferred_order = []
+        if self.selected_model_display_name and self.selected_model_display_name in Config.AVAILABLE_MODELS:
+            preferred_order.append(self.selected_model_display_name)
+        
+        for model_name in models_to_try_display_names:
+            if model_name not in preferred_order:
+                preferred_order.append(model_name)
+
+        for model_display_name in preferred_order:
             model_info = Config.AVAILABLE_MODELS.get(model_display_name)
             if not model_info: continue 
             
@@ -142,18 +151,19 @@ class PhysicsOrchestrator:
 
             try:
                 agent = self.agents[agent_name]
-                # Passa as chaves runtime para o agente se elas forem necessárias para este modelo
-                env_vars_for_litellm = {}
+                
+                # Configura variáveis de ambiente para LiteLLM, se chave foi fornecida runtime
+                litellm_env = {}
                 if key_name and key_name in self.runtime_keys:
-                    env_vars_for_litellm[key_name] = self.runtime_keys[key_name]
-
-                response_text = agent.ask(prompt, context=context, image=image, model_config={"id": current_model_id, "api_key": env_vars_for_litellm.get(key_name)})
+                    litellm_env[key_name] = self.runtime_keys[key_name]
+                
+                # Chama o agente com o modelo específico
+                response_text = agent.ask(prompt, context=context, image=image, model_id=current_model_id)
                 
                 if response_text and "ERRO" not in response_text and "Erro na API" not in response_text:
                     # Sucesso! Retorna a resposta, nome do modelo e indica que não houve fallback (ainda)
                     return response_text, model_display_name, False
                 else:
-                    # O modelo respondeu, mas com um erro interno aparente. Trata como falha para fallback.
                     last_error_message = f"Model {model_display_name} ({current_model_id}) returned an error: {response_text}"
                     print(f"[*] {last_error_message}")
 
@@ -164,7 +174,7 @@ class PhysicsOrchestrator:
                 last_error_message = f"Unexpected error with {model_display_name} ({current_model_id}): {str(e)}"
                 print(f"[*] {last_error_message}")
             
-            time.sleep(Config.DELAY_BETWEEN_AGENTS)
+            time.sleep(Config.DELAY_BETWEEN_AGENTS) # Espera antes de tentar o próximo
 
         return f"Erro: Todos os modelos falharam. Último erro: {last_error_message}", None, True
 
@@ -198,7 +208,7 @@ class PhysicsOrchestrator:
         response, model_name_solver, fb_solver = self._attempt_model_call("solver", input_data, state.teacher_notes, image)
         state.solution_steps = response
         if fb_solver: state.fallback_occurred = True
-        if model_name_solver: state.used_model_display_name = model_name_solver
+        if model_name_solver: state.used_model_display_name = model_name_solver # Atualiza modelo usado se fallback ocorreu
 
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
         
@@ -211,7 +221,10 @@ class PhysicsOrchestrator:
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Curador
-        response, model_name_curator, fb_curator = self._attempt_model_call("curator", input_data, f"{state.teacher_notes} {state.ufsm_alignment}", image)
+        combined_context = f"{state.teacher_notes}
+        
+ALINHAMENTO UFSM: {state.ufsm_alignment['nome'] if state.ufsm_alignment else 'N/A'}"
+        response, model_name_curator, fb_curator = self._attempt_model_call("curator", input_data, combined_context, image)
         state.mapa_mental_markdown = response
         if fb_curator: state.fallback_occurred = True
         if model_name_curator: state.used_model_display_name = model_name_curator
@@ -227,35 +240,53 @@ class PhysicsOrchestrator:
         return state
 
 if __name__ == "__main__":
-    # Simulação para teste: assume que as chaves estão em .env
-    # O app.py irá gerenciar a seleção e runtime keys.
-    print("--- Teste de Fallback do Core ---")
+    # --- Teste Básico de Fallback ---
+    print("--- TESTE CORE: Seleção de Modelo e Fallback ---")
     
-    # Teste 1: Modelo padrão (Gemini 3.0 Preview) com chave presente
+    # Teste 1: Simular seleção manual de um modelo que pode ter chave ausente (ex: Gemini 3.0 Preview se GEMINI_API_KEY não estiver no .env)
     print("
-Testando modelo preferencial (Gemini 3.0 Preview)...")
+Tentando modelo selecionado (Gemini 3.0 Preview) com fallback automático...")
     try:
-        orch_gemini = PhysicsOrchestrator(model_display_name="Gemini 3.0 Preview")
-        res_gemini = orch_gemini.run("Explique o princípio da conservação de energia.")
-        print(f"Resultado (Gemini): Modelo usado: {res_gemini.used_model_display_name}, Fallback: {res_gemini.fallback_occurred}")
-        print(f"Resposta Socrática: {res_gemini.pergunta_socratica[:100]}...")
-    except Exception as e:
-        print(f"Falha inicial ao testar Gemini: {e}")
+        # Simula que GEMINI_API_KEY está ausente, mas OPENAI_API_KEY está presente.
+        # Em um teste real, você ajustaria as variáveis de ambiente ou passaria runtime_keys.
+        
+        # Mocking os.getenv para simular chave ausente para Gemini
+        original_gemini_key = os.environ.pop("GEMINI_API_KEY", None)
+        # Preserva outras chaves que podem estar setadas para o teste de fallback
+        original_openai_key = os.getenv("OPENAI_API_KEY")
+        original_deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+        
+        # Chaves fornecidas runtime para o teste (simulando a entrada do usuário)
+        simulated_runtime_keys = {}
+        if not os.getenv("OPENAI_API_KEY") and original_openai_key: # Se OpenAI não está em .env, mas foi lida antes
+             simulated_runtime_keys["OPENAI_API_KEY"] = original_openai_key
+        elif not os.getenv("OPENAI_API_KEY") and not original_openai_key: # Se não está em .env e não foi lida antes
+             print("NOTA: OpenAI API Key não encontrada no .env. Teste de fallback para OpenAI pode falhar se não for fornecida.")
+             # simulated_runtime_keys["OPENAI_API_KEY"] = "sk-test-openai-key" # Exemplo de chave runtime
 
-    # Teste 2: Simulação de falha no modelo primário (Gemini) e fallback para OpenAI
-    print("
-Simulando falha no Gemini e testando fallback para OpenAI...")
-    # Para simular, precisamos que a chave do Gemini não esteja presente, mas OpenAI esteja.
-    # Em um teste real, você desativaria a GEMINI_API_KEY no .env.
-    # Aqui, vamos simular um erro em _attempt_model_call para forçar o próximo.
-    # A lógica de _attempt_model_call já gerencia isso internamente.
-    # Vamos apenas assumir que Gemini falhou e tentar o próximo na ordem.
-    
-    # Para simular, precisaríamos de um mock ou chave inválida.
-    # O teste prático será feito na UI do Streamlit.
-    # Aqui, apenas confirmamos que a estrutura está pronta para receber a escolha do usuário.
-    print("A lógica de fallback está integrada no PhysicsOrchestrator.")
-    print("O teste prático deve ser feito pela UI do Streamlit, alternando entre modelos.")
+        selected_model_display_for_test = "Gemini 3.0 Preview"
+        orchestrator_test = PhysicsOrchestrator(
+            selected_model_display_name=selected_model_display_for_test,
+            runtime_keys=simulated_runtime_keys
+        )
+        test_prompt = "Explique a conservação de energia."
+        
+        result = orchestrator_test.run(test_prompt, selected_model_display_name=selected_model_display_for_test, runtime_keys=simulated_runtime_keys)
+        
+        print(f"
+--- RESULTADO DO TESTE ---")
+        print(f"Modelo utilizado: {result.used_model_display_name}")
+        print(f"Fallback ocorreu: {result.fallback_occurred}")
+        print(f"Resposta Socrática: {result.pergunta_socratica[:150]}...")
+        
+    except Exception as e:
+        print(f"Erro durante o teste do orchestrator: {e}")
+    finally:
+        # Restaurar chaves originais no ambiente, se foram removidas/modificadas
+        if original_gemini_key: os.environ["GEMINI_API_KEY"] = original_gemini_key
+        if original_openai_key: os.environ["OPENAI_API_KEY"] = original_openai_key
+        if original_deepseek_key: os.environ["DEEPSEEK_API_KEY"] = original_deepseek_key # Se também foi manipulada
+
 
     print("
 --- TESTE CORE FINALIZADO ---")
