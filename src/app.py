@@ -1,30 +1,58 @@
 import streamlit as st
-from core import PhysicsOrchestrator
+from core import PhysicsOrchestrator, Evaluator
 import time
 from pypdf import PdfReader
 import io
 import os
 from PIL import Image
-from config import Config
+from config import Config # Importa Config para acessar modelos e chaves
 from typing import Dict, Any, Optional
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="TutorIAFisica - Multi-Model", layout="wide", page_icon="🌌")
 
 # --- ESTILIZAÇÃO CSS ---
+# Revisado para garantir a correta delimitação da string multi-linha e clareza.
+# O erro 'unterminated string literal' na linha 33 em execuções anteriores foi provavelmente devido a um detalhe de parsing.
 st.markdown("""
     <style>
+    /* Estilização Geral */
     .stApp { background-color: #ffffff; color: #31333f; }
-    .agent-box { padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e6e9ef; background-color: #f8f9fa; }
-    .border-interprete { border-left: 8px solid #007bff; }
-    .border-solucionador { border-left: 8px solid #28a745; }
-    .border-visualizador { border-left: 8px solid #fd7e14; }
-    .border-curador { border-left: 8px solid #6f42c1; }
-    .border-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; }
-    .ufsm-badge { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; margin-bottom: 20px; font-weight: bold; }
-    .pcloud-badge { background-color: #e3f2fd; color: #1976d2; padding: 10px; border-radius: 8px; border: 1px solid #bbdefb; margin-bottom: 15px; font-size: 0.9em; }
-    .fallback-notification { background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; border: 1px solid #f5c6cb; margin-bottom: 15px; font-weight: bold; }
-    h1, h2, h3 { color: #1c2b46; }
+    
+    /* Customização das bolhas de chat */
+    .stChatMessage { border-radius: 15px; padding: 15px; margin-bottom: 15px; border: 1px solid #e6e9ef; }
+    
+    /* Cores das equações LaTeX */
+    .katex { font-size: 1.1em; color: #58a6ff; }
+    
+    /* Identidade visual por Agente (Bordas Laterais e Fundo da Mensagem) */
+    /* Usando os nomes dos agentes como classes auxiliares ou seletor de nome */
+    /* Nota: A seleção direta de st.chat_message é complexa, então aplicamos estilos gerais */
+    /* e adicionamos classes/identificadores se possível, ou usamos o nome do bot como teste */
+
+    /* Exemplo de como seria se tivéssemos classes por nome: */
+    /* [data-actor="Intérprete"] .stChatMessage { border-left: 8px solid #007bff; background-color: #e6f0ff; } */
+    /* Mas como isso não é diretamente exposto, aplicamos estilos mais genéricos ou baseados em data-testid se disponível. */
+    /* Tentativa de Targetizar baseado na estrutura atual: */
+    div[data-testid="stChatMessage"] > div:nth-child(2) > div:nth-child(1) > div:nth-child(1) > div[data-baseweb="box"] {
+        border-left: 8px solid #1f77b4; /* Azul para Intérprete */
+        background-color: #e6f0ff; /* Fundo levemente azulado */
+    }
+    div[data-testid="stChatMessage"] > div:nth-child(2) > div:nth-child(1) > div:nth-child(1) > div[data-baseweb="box"] div[data-testid="stChatMessageName"] { /* Pode precisar de ajuste fino */
+        color: #1f77b4; font-weight: bold;
+    }
+
+    /* Usando classes diretas para os agentes de forma mais previsível se possível. */
+    /* Este é um fallback, caso a estrutura interna do Streamlit mude */
+    .agent-solucionador { border-left: 8px solid #28a745; background-color: #e9f7ec; } /* Verde */
+    .agent-visualizador { border-left: 8px solid #fd7e14; background-color: #fff9e9; } /* Laranja */
+    .agent-curador { border-left: 8px solid #6f42c1; background-color: #f3f0f9; } /* Roxo */
+    .agent-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; } /* Vermelho */
+    
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #0e1117; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,7 +64,7 @@ def extract_text_from_pdf(uploaded_file):
 
 def main():
     st.title("🌌 TutorIAFisica: Mentor Multi-Model")
-    st.caption("v4.4 | Seleção Flexível de Modelos com Fallback e Gerenciamento de Chaves")
+    st.caption("v4.3 | Seleção Flexível de Modelos com Fallback Automático e Gerenciamento de Chaves")
 
     # --- BARRA LATERAL ---
     with st.sidebar:
@@ -63,7 +91,7 @@ def main():
             st.session_state.selected_model_display_name = selected_model_display_name
             st.rerun() # Reinicia a página para aplicar a mudança (ex: desabilitar upload de imagem)
 
-        # Gerenciamento de Chaves API (requer chaves para modelo selecionado ou fallback)
+        # Gerenciamento de Chaves API
         runtime_keys = {}
         keys_to_prompt_names = []
         
@@ -88,7 +116,6 @@ def main():
                         runtime_keys[key_name_to_get] = user_key
                         st.success(f"Chave '{key_name_to_get}' inserida para esta sessão.")
         
-        # Aviso sobre multimodalidade
         model_is_multimodal = Config.is_model_multimodal(st.session_state.selected_model_display_name)
         if not model_is_multimodal:
             st.warning("O modelo selecionado não suporta entrada de imagem. O upload de foto será ignorado.")
