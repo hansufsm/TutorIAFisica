@@ -156,9 +156,14 @@ def main():
             input_image = None
 
         st.divider()
-        st.header("☁️ Repositório Cloud")
-        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.com/#/puplink?code=YwnXZ5JRkIVuJIKjhmWtlGzorl0jp6UeX")
-        st.caption("Crie um Link Público no pCloud e cole aqui para sincronizar PDFs.")
+        st.header("☁️ Material pCloud do Aluno")
+        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.com/#/publink?code=YwnXZ5JRkIVuJIKjhmWtlGzorl0jp6UeX")
+        st.caption("Link único por sessão — PDFs que o aluno envia para esta dúvida.")
+
+        st.divider()
+        st.header("📦 Repositório Permanente")
+        pcloud_repo_url = st.text_input("Link pCloud Repositório (Professor):", key="pcloud_repo_url", placeholder="https://u.pcloud.com/#/publink?code=...")
+        st.caption("Link fixo da pasta com todos os PDFs do professor. O sistema busca materiais relevantes automaticamente.")
 
     # --- ENTRADA DO ALUNO ---
     enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: Explique a conservação de energia em um sistema...")
@@ -180,16 +185,16 @@ def main():
                 selected_model_display_name=st.session_state.selected_model_display_name,
                 runtime_keys=runtime_keys
             )
-            
+
             img_obj = Image.open(input_image) if input_image else None
-            
+
             # Verifica se o modelo selecionado requer chave e ela está ausente
             needs_key = Config.get_provider_key_name(st.session_state.selected_model_display_name)
             if needs_key and not os.getenv(Config.get_provider_key_name(st.session_state.selected_model_display_name)) and not runtime_keys.get(Config.get_provider_key_name(st.session_state.selected_model_display_name)):
                  st.warning(f"Chave API para o modelo selecionado '{st.session_state.selected_model_display_name}' não encontrada. O sistema tentará modelos alternativos.")
 
             with st.status("🔄 Iniciando análise...", expanded=True) as status:
-                res = orchestrator.run(enunciado, manual_notes, pcloud_url, img_obj, on_progress=st.write)
+                res = orchestrator.run(enunciado, manual_notes, pcloud_url, repo_url=pcloud_repo_url, image=img_obj, on_progress=st.write)
                 st.session_state.last_result = res
 
                 if res.fallback_occurred:
@@ -198,6 +203,24 @@ def main():
                     st.success(f"Modelo ativo: **{res.used_model_display_name}**")
                 else:
                     st.error("Não foi possível obter uma resposta de nenhum modelo disponível.")
+
+                st.divider()
+                st.subheader("📊 Fontes Utilizadas")
+                sources_used = []
+                if res.ufsm_context:
+                    st.write("📘 **Ementa UFSM** localizada e utilizada")
+                    sources_used.append("UFSM")
+                if res.professor_notes_text.strip():
+                    st.write("📄 **Notas do Professor** incorporadas")
+                    sources_used.append("Professor")
+                if res.pcloud_session_text.strip():
+                    st.write("☁️ **Material do Aluno** (pCloud) carregado")
+                    sources_used.append("Aluno")
+                if res.pcloud_repo_text.strip():
+                    st.write("📦 **Repositório Permanente** consultado")
+                    sources_used.append("Repositório")
+                if not sources_used:
+                    st.info("✨ Resposta gerada pelo **Modelo de IA** (sem materiais de referência)")
 
                 status.update(label="✅ Análise Concluída!", state="complete", expanded=False)
 

@@ -15,18 +15,21 @@ class PhysicsState:
     """Objeto de Estado do Problema (Design Pattern: State)."""
     def __init__(self, raw_input: str, teacher_notes: str = "", pcloud_url: str = "", image: Any = None):
         self.raw_input = raw_input
-        self.teacher_notes = teacher_notes
+        self.professor_notes_text = teacher_notes
         self.pcloud_url = pcloud_url
+        self.pcloud_session_text = ""
+        self.pcloud_repo_text = ""
+        self.ufsm_context = ""
         self.image_input = image
-        
+
         self.concepts = []
         self.solution_steps = ""
         self.pergunta_socratica = ""
         self.code_snippet = ""
         self.mapa_mental_markdown = ""
-        self.ufsm_alignment = None 
+        self.ufsm_alignment = None
         self.pcloud_notes_found = False
-        
+
         # Campos de Avaliação Formativa
         self.quiz_question: str = ""
         self.quiz_answer_submitted: bool = False
@@ -36,16 +39,28 @@ class PhysicsState:
         self.used_model_display_name: Optional[str] = None
         self.fallback_occurred: bool = False
 
-    def sync_external_data(self, on_progress=None):
+    @property
+    def teacher_notes(self) -> str:
+        """Compatibilidade: retorna a concatenação de todas as notas."""
+        parts = [self.professor_notes_text, self.pcloud_session_text, self.pcloud_repo_text]
+        return "\n\n".join([p for p in parts if p.strip()])
+
+    def sync_external_data(self, on_progress=None, repo_url: str = ""):
         """Sincroniza dados de fontes externas (pCloud, Ementário UFSM)."""
         if on_progress: on_progress("📚 Verificando materiais...")
-        cloud_text = PCloudManager.fetch_notes(self.pcloud_url)
-        if cloud_text:
-            self.teacher_notes = (self.teacher_notes + "\n\n" + cloud_text).strip()
-            self.pcloud_notes_found = True
-            if on_progress: on_progress(f"☁️ pCloud sincronizado ({len(cloud_text)} caracteres importados)")
-        elif self.pcloud_url:
-            if on_progress: on_progress("ℹ️ pCloud: nenhum PDF encontrado")
+        if self.pcloud_url:
+            cloud_text = PCloudManager.fetch_notes(self.pcloud_url)
+            if cloud_text:
+                self.pcloud_session_text = cloud_text
+                self.pcloud_notes_found = True
+                if on_progress: on_progress(f"☁️ pCloud sessão sincronizado ({len(cloud_text)} caracteres)")
+            elif on_progress:
+                on_progress("ℹ️ pCloud: nenhum PDF encontrado")
+        if repo_url:
+            repo_text = PCloudManager.fetch_notes(repo_url)
+            if repo_text:
+                self.pcloud_repo_text = repo_text
+                if on_progress: on_progress(f"📦 Repositório carregado ({len(repo_text)} caracteres)")
 
     def _check_ufsm_syllabus(self):
         """Busca match no ementário da UFSM baseado nos conceitos identificados."""
@@ -56,11 +71,29 @@ class PhysicsState:
             for d in syllabus['disciplinas']:
                 for t in d['temas']:
                     for conceito in self.concepts:
-                        if conceito.lower() in t.lower(): # Simples busca por substring
+                        if conceito.lower() in t.lower():
                             self.ufsm_alignment = d
+                            self.ufsm_context = (
+                                f"Disciplina: {d['nome']} ({d['codigo']})\n"
+                                f"Temas do ementário: {', '.join(d['temas'])}\n"
+                                f"Bibliografia básica: {'; '.join(d['bibliografia_basica'][:3]) if d.get('bibliografia_basica') else 'N/A'}"
+                            )
                             return
         except Exception as e:
             print(f"Erro ao consultar ementário UFSM: {e}")
+
+    def build_context(self) -> str:
+        """Monta contexto priorizado com rótulos de fonte."""
+        parts = []
+        if self.ufsm_context:
+            parts.append(f"### [EMENTA UFSM]\n{self.ufsm_context}")
+        if self.professor_notes_text.strip():
+            parts.append(f"### [NOTAS DO PROFESSOR]\n{self.professor_notes_text}")
+        if self.pcloud_session_text.strip():
+            parts.append(f"### [MATERIAL DO ALUNO - pCloud]\n{self.pcloud_session_text}")
+        if self.pcloud_repo_text.strip():
+            parts.append(f"### [REPOSITÓRIO DE MATERIAIS]\n{self.pcloud_repo_text}")
+        return "\n\n".join(parts)
 
 class TutorIAAgent:
     """Classe base para todos os agentes de IA."""
@@ -113,12 +146,13 @@ class PhysicsOrchestrator:
         self.used_model_display_name: Optional[str] = None
         self.fallback_occurred: bool = False
 
+        source_attribution = "Ao usar informações do MATERIAL DE REFERÊNCIA, cite a fonte: **[Ementa UFSM]**, **[Notas do Professor]**, **[Material do Aluno]** ou **[Repositório]**. Conhecimento próprio: **[Modelo de IA]**."
         self.agents = {
-            "interpreter": TutorIAAgent("Intérprete", "Você é um professor socrático. Identifique conceitos e crie perguntas reflexivas."),
-            "solver": TutorIAAgent("Matemático", "Resolva com LaTeX e rigor."),
-            "visualizer": TutorIAAgent("Visualizador", "Gere apenas código Python (matplotlib/plotly) funcional."),
-            "curator": TutorIAAgent("Curador", "Forneça aplicações reais, links acadêmicos e mapa mental."),
-            "evaluator": TutorIAAgent("Avaliador", "Crie desafios pedagógicos curtos e dê feedback socrático.")
+            "interpreter": TutorIAAgent("Intérprete", f"Você é um professor socrático. Identifique conceitos e crie perguntas reflexivas. {source_attribution}"),
+            "solver": TutorIAAgent("Matemático", f"Resolva com LaTeX e rigor. {source_attribution}"),
+            "visualizer": TutorIAAgent("Visualizador", f"Gere apenas código Python (matplotlib/plotly) funcional. {source_attribution}"),
+            "curator": TutorIAAgent("Curador", f"Forneça aplicações reais, links acadêmicos e mapa mental. {source_attribution}"),
+            "evaluator": TutorIAAgent("Avaliador", f"Crie desafios pedagógicos curtos e dê feedback socrático. {source_attribution}")
         }
 
     def _attempt_model_call(self, agent_name: str, prompt: str, context: str, image: Any = None) -> tuple[str, Optional[str], bool]:
@@ -179,17 +213,18 @@ class PhysicsOrchestrator:
 
         return f"Erro: Todos os modelos falharam. Último erro: {last_error_message}", None, True
 
-    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", image: Any = None, on_progress=None):
+    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", repo_url: str = "", image: Any = None, on_progress=None):
         """Executa o pipeline de agentes com fallback automático."""
 
         state = PhysicsState(input_data, teacher_notes, pcloud_url, image)
-        state.sync_external_data(on_progress=on_progress)
+        state.sync_external_data(on_progress=on_progress, repo_url=repo_url)
 
         # --- Execução sequencial dos agentes com fallback ---
 
         # Intérprete
         if on_progress: on_progress("🧩 Intérprete: analisando o problema...")
-        response, model_name_used_int, fb_int = self._attempt_model_call("interpreter", input_data, state.teacher_notes, image)
+        context = state.build_context() if state.build_context() else ""
+        response, model_name_used_int, fb_int = self._attempt_model_call("interpreter", input_data, context, image)
         state.pergunta_socratica = response
         if "," in response:
             state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
@@ -203,19 +238,22 @@ class PhysicsOrchestrator:
 
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
+        # Atualizar contexto após identificar disciplina UFSM
+        context = state.build_context() if state.build_context() else ""
+
         # Solucionador
         if on_progress: on_progress("📐 Solucionador: calculando...")
-        response, model_name_solver, fb_solver = self._attempt_model_call("solver", input_data, state.teacher_notes, image)
+        response, model_name_solver, fb_solver = self._attempt_model_call("solver", input_data, context, image)
         state.solution_steps = response
         if fb_solver: state.fallback_occurred = True
-        if model_name_solver: state.used_model_display_name = model_name_solver # Atualiza modelo usado se fallback ocorreu
+        if model_name_solver: state.used_model_display_name = model_name_solver
         if on_progress: on_progress("✅ Solucionador concluído")
 
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Visualizador
         if on_progress: on_progress("🖼️ Visualizador: gerando código Python...")
-        response, model_name_vis, fb_vis = self._attempt_model_call("visualizer", input_data, state.teacher_notes, image)
+        response, model_name_vis, fb_vis = self._attempt_model_call("visualizer", input_data, context, image)
         state.code_snippet = response.replace("```python", "").replace("```", "").strip()
         if fb_vis: state.fallback_occurred = True
         if model_name_vis: state.used_model_display_name = model_name_vis
@@ -225,8 +263,7 @@ class PhysicsOrchestrator:
 
         # Curador
         if on_progress: on_progress("📚 Curador: mapeando contexto UFSM...")
-        combined_context = f"{state.teacher_notes}\n\nALINHAMENTO UFSM: {state.ufsm_alignment['nome'] if state.ufsm_alignment else 'N/A'}"
-        response, model_name_curator, fb_curator = self._attempt_model_call("curator", input_data, combined_context, image)
+        response, model_name_curator, fb_curator = self._attempt_model_call("curator", input_data, context, image)
         state.mapa_mental_markdown = response
         if fb_curator: state.fallback_occurred = True
         if model_name_curator: state.used_model_display_name = model_name_curator
@@ -236,7 +273,7 @@ class PhysicsOrchestrator:
 
         # Avaliador
         if on_progress: on_progress("🎯 Avaliador: criando desafio...")
-        response, model_name_eval, fb_eval = self._attempt_model_call("evaluator", input_data, state.teacher_notes, image)
+        response, model_name_eval, fb_eval = self._attempt_model_call("evaluator", input_data, context, image)
         state.quiz_question = response
         if fb_eval: state.fallback_occurred = True
         if model_name_eval: state.used_model_display_name = model_name_eval
