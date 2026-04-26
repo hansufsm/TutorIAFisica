@@ -4,7 +4,6 @@ from pypdf import PdfReader
 import os
 from PIL import Image
 from config import Config
-from typing import Dict, Any, Optional
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="TutorIAFisica - Multi-Model", layout="wide", page_icon="🌌")
@@ -162,27 +161,23 @@ def main():
             
             img_obj = Image.open(input_image) if input_image else None
             
-            # Feedback visual para o usuário sobre o modelo ativo e possível fallback
-            status_message = f"Consultando modelo: **{st.session_state.selected_model_display_name}**..."
-            # A verificação de fallback principal ocorre DENTRO do orchestrator.run, mas podemos mostrar um aviso inicial
             # Verifica se o modelo selecionado requer chave e ela está ausente
             needs_key = Config.get_provider_key_name(st.session_state.selected_model_display_name)
             if needs_key and not os.getenv(Config.get_provider_key_name(st.session_state.selected_model_display_name)) and not runtime_keys.get(Config.get_provider_key_name(st.session_state.selected_model_display_name)):
-                 status_message = f"Modelo selecionado '{st.session_state.selected_model_display_name}' sem chave configurada. Tentando fallback..."
                  st.warning(f"Chave API para o modelo selecionado '{st.session_state.selected_model_display_name}' não encontrada. O sistema tentará modelos alternativos.")
 
-            with st.status(status_message, expanded=True) as status:
-                res = orchestrator.run(enunciado, manual_notes, pcloud_url, img_obj)
+            with st.status("🔄 Iniciando análise...", expanded=True) as status:
+                res = orchestrator.run(enunciado, manual_notes, pcloud_url, img_obj, on_progress=st.write)
                 st.session_state.last_result = res
-                
+
                 if res.fallback_occurred:
-                    st.warning(f"O modelo primário falhou. Usando **{res.used_model_display_name}** para a resposta.")
+                    st.warning(f"Fallback ativo. Usando **{res.used_model_display_name}** para a resposta.")
                 elif res.used_model_display_name:
                     st.success(f"Modelo ativo: **{res.used_model_display_name}**")
                 else:
                     st.error("Não foi possível obter uma resposta de nenhum modelo disponível.")
-                
-                status.update(label="Análise Concluída!", state="complete", expanded=False)
+
+                status.update(label="✅ Análise Concluída!", state="complete", expanded=False)
 
         else:
             st.warning("Por favor, insira um enunciado ou anexe uma imagem.")

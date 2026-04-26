@@ -36,13 +36,16 @@ class PhysicsState:
         self.used_model_display_name: Optional[str] = None
         self.fallback_occurred: bool = False
 
-    def sync_external_data(self):
+    def sync_external_data(self, on_progress=None):
         """Sincroniza dados de fontes externas (pCloud, Ementário UFSM)."""
+        if on_progress: on_progress("📚 Verificando materiais...")
         cloud_text = PCloudManager.fetch_notes(self.pcloud_url)
         if cloud_text:
             self.teacher_notes = (self.teacher_notes + "\n\n" + cloud_text).strip()
             self.pcloud_notes_found = True
-        self._check_ufsm_syllabus()
+            if on_progress: on_progress(f"☁️ pCloud sincronizado ({len(cloud_text)} caracteres importados)")
+        elif self.pcloud_url:
+            if on_progress: on_progress("ℹ️ pCloud: nenhum PDF encontrado")
 
     def _check_ufsm_syllabus(self):
         """Busca match no ementário da UFSM baseado nos conceitos identificados."""
@@ -175,15 +178,16 @@ class PhysicsOrchestrator:
 
         return f"Erro: Todos os modelos falharam. Último erro: {last_error_message}", None, True
 
-    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", image: Any = None):
+    def run(self, input_data: str, teacher_notes: str = "", pcloud_url: str = "", image: Any = None, on_progress=None):
         """Executa o pipeline de agentes com fallback automático."""
 
         state = PhysicsState(input_data, teacher_notes, pcloud_url, image)
-        state.sync_external_data()
+        state.sync_external_data(on_progress=on_progress)
 
         # --- Execução sequencial dos agentes com fallback ---
-        
+
         # Intérprete
+        if on_progress: on_progress("🧩 Intérprete: analisando o problema...")
         response, model_name_used_int, fb_int = self._attempt_model_call("interpreter", input_data, state.teacher_notes, image)
         state.pergunta_socratica = response
         if "," in response:
@@ -191,43 +195,52 @@ class PhysicsOrchestrator:
         else:
             state.concepts = ["Física Geral"]
         state._check_ufsm_syllabus()
-        
+
         if fb_int: state.fallback_occurred = True
         state.used_model_display_name = model_name_used_int
+        if on_progress: on_progress(f"✅ Intérprete concluído — modelo: {model_name_used_int or 'desconhecido'}")
 
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Solucionador
+        if on_progress: on_progress("📐 Solucionador: calculando...")
         response, model_name_solver, fb_solver = self._attempt_model_call("solver", input_data, state.teacher_notes, image)
         state.solution_steps = response
         if fb_solver: state.fallback_occurred = True
         if model_name_solver: state.used_model_display_name = model_name_solver # Atualiza modelo usado se fallback ocorreu
+        if on_progress: on_progress("✅ Solucionador concluído")
 
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
-        
+
         # Visualizador
+        if on_progress: on_progress("🖼️ Visualizador: gerando código Python...")
         response, model_name_vis, fb_vis = self._attempt_model_call("visualizer", input_data, state.teacher_notes, image)
         state.code_snippet = response.replace("```python", "").replace("```", "").strip()
         if fb_vis: state.fallback_occurred = True
         if model_name_vis: state.used_model_display_name = model_name_vis
+        if on_progress: on_progress("✅ Visualizador concluído")
 
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Curador
+        if on_progress: on_progress("📚 Curador: mapeando contexto UFSM...")
         combined_context = f"{state.teacher_notes}\n\nALINHAMENTO UFSM: {state.ufsm_alignment['nome'] if state.ufsm_alignment else 'N/A'}"
         response, model_name_curator, fb_curator = self._attempt_model_call("curator", input_data, combined_context, image)
         state.mapa_mental_markdown = response
         if fb_curator: state.fallback_occurred = True
         if model_name_curator: state.used_model_display_name = model_name_curator
-        
+        if on_progress: on_progress("✅ Curador concluído")
+
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Avaliador
+        if on_progress: on_progress("🎯 Avaliador: criando desafio...")
         response, model_name_eval, fb_eval = self._attempt_model_call("evaluator", input_data, state.teacher_notes, image)
         state.quiz_question = response
         if fb_eval: state.fallback_occurred = True
         if model_name_eval: state.used_model_display_name = model_name_eval
-        
+        if on_progress: on_progress("✅ Avaliador concluído")
+
         return state
 
 if __name__ == "__main__":
