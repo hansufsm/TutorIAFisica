@@ -217,6 +217,17 @@ class PhysicsOrchestrator:
         """Executa o pipeline de agentes com fallback automático."""
 
         state = PhysicsState(input_data, teacher_notes, pcloud_url, image)
+
+        # Debug: Log material sources
+        if on_progress:
+            on_progress(f"📚 Fontes identificadas:")
+            if teacher_notes.strip():
+                on_progress(f"  📄 Notas do professor: {len(teacher_notes)} caracteres")
+            if pcloud_url:
+                on_progress(f"  ☁️ Link pCloud sessão fornecido")
+            if repo_url:
+                on_progress(f"  📦 Repositório permanente fornecido")
+
         state.sync_external_data(on_progress=on_progress, repo_url=repo_url)
 
         # --- Execução sequencial dos agentes com fallback ---
@@ -240,6 +251,8 @@ class PhysicsOrchestrator:
 
         # Atualizar contexto após identificar disciplina UFSM
         context = state.build_context() if state.build_context() else ""
+        if on_progress and context:
+            on_progress(f"✅ Contexto montado: {len(context)} caracteres com {context.count('[') // 2} fontes")
 
         # Solucionador
         if on_progress: on_progress("📐 Solucionador: calculando...")

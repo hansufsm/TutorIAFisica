@@ -179,6 +179,14 @@ def main():
                      runtime_key_input = st.session_state.get(f"runtime_key_{key_name}")
                      if runtime_key_input:
                          runtime_keys[key_name] = runtime_key_input
+
+            # Debug: Log input materials
+            with st.status("🔍 Verificando materiais de entrada...", expanded=False) as debug_status:
+                st.write(f"📝 Enunciado: {len(enunciado)} caracteres")
+                st.write(f"📄 Notas do professor: {len(manual_notes)} caracteres")
+                st.write(f"☁️ Link pCloud: {'✓ Fornecido' if pcloud_url else '✗ Não fornecido'}")
+                st.write(f"📦 Repositório permanente: {'✓ Fornecido' if pcloud_repo_url else '✗ Não fornecido'}")
+                st.write(f"📷 Imagem: {'✓ Fornecida' if input_image else '✗ Não fornecida'}")
             
             # Instancia o Orchestrator com o modelo selecionado pelo usuário e chaves runtime
             orchestrator = PhysicsOrchestrator(
