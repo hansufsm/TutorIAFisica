@@ -13,7 +13,6 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY") # Para Claude
     PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
-    XAI_API_KEY = os.getenv("XAI_API_KEY") # Nova chave para Grok
     # Chave para modelo Manusc (se for um serviço externo, senão pode ser configurado de outra forma)
     MANUSC_API_KEY = os.getenv("MANUSC_API_KEY") 
 
@@ -33,8 +32,7 @@ class Config:
         "Claude 3 Opus": {"id": "claude/claude-3-opus", "multimodal": False},
         "Perplexity Online": {"id": "perplexity/online", "multimodal": False},
         "DeepSeek Chat": {"id": "deepseek/deepseek-chat", "multimodal": False},
-        "Grok XL": {"id": "xai/grok-1", "multimodal": False}, # Novo modelo adicionado
-        "Manusc Model": {"id": "local/manusc-model", "multimodal": False} # Placeholder
+        "Manusc Model": {"id": "local/manusc-model", "multimodal": False} # Placeholder para modelo local/customizado
     }
     
     # Ordem de preferência para fallback automático
