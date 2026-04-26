@@ -122,9 +122,13 @@ def main():
         if uploaded_file:
             if uploaded_file.type == "application/pdf":
                 manual_notes = extract_text_from_pdf(uploaded_file)
+                if not manual_notes.strip():
+                    st.warning("⚠️ PDF sem texto extraível (pode ser escaneado). Conteúdo não será enviado aos agentes.")
+                else:
+                    st.info(f"✅ PDF carregado ({len(manual_notes)} caracteres extraídos).")
             else:
                 manual_notes = uploaded_file.read().decode("utf-8")
-            st.info("Notas manuais carregadas.")
+                st.info(f"✅ TXT carregado ({len(manual_notes)} caracteres).")
 
         st.divider()
         st.header("📷 Entrada de Imagem")

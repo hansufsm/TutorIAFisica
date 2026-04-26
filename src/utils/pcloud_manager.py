@@ -8,22 +8,24 @@ class PCloudManager:
     def fetch_notes(pcloud_url: str) -> str:
         if not pcloud_url:
             return ""
-        
+
         try:
             code = pcloud_url.split("code=")[-1]
             # Tenta Europa primeiro
-            response = requests.get(f"{Config.PCLOUD_API_URL}/showpublink", params={"code": code})
+            api_base = Config.PCLOUD_API_URL
+            response = requests.get(f"{api_base}/showpublink", params={"code": code})
             data = response.json()
-            
+
             if data.get("result") != 0:
-                response = requests.get(f"{Config.PCLOUD_GLOBAL_URL}/showpublink", params={"code": code})
+                api_base = Config.PCLOUD_GLOBAL_URL
+                response = requests.get(f"{api_base}/showpublink", params={"code": code})
                 data = response.json()
 
             if data.get("result") == 0:
                 pdf_files = [item for item in data['metadata'].get('contents', []) if item.get("name", "").endswith(".pdf")]
                 all_text = ""
                 for pdf in pdf_files:
-                    dl_res = requests.get(f"{Config.PCLOUD_API_URL}/getpublinkdownload", params={"code": code, "fileid": pdf['fileid']})
+                    dl_res = requests.get(f"{api_base}/getpublinkdownload", params={"code": code, "fileid": pdf['fileid']})
                     dl_data = dl_res.json()
                     if dl_data.get("result") == 0:
                         host = dl_data['hosts'][0]

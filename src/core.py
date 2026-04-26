@@ -74,8 +74,9 @@ class TutorIAAgent:
             model_id = Config.get_model_id(Config.DEFAULT_MODEL_DISPLAY_NAME)
             print(f"Aviso: Nenhum model_id especificado, usando padrão {model_id}")
 
+        context_block = f"\n\n### MATERIAL DE REFERÊNCIA (use prioritariamente):\n{context}" if context.strip() else ""
         messages = [
-            {"role": "system", "content": f"{self.system_instruction}\nCONTEXTO: {context}"},
+            {"role": "system", "content": f"{self.system_instruction}{context_block}"},
             {"role": "user", "content": prompt}
         ]
 
