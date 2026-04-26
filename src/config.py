@@ -46,7 +46,7 @@ class Config:
         "Perplexity Sonar",
     ]
 
-    DEFAULT_MODEL_DISPLAY_NAME = "Gemini 2.0 Flash"
+    DEFAULT_MODEL_DISPLAY_NAME = "Gemini 1.5 Flash"
     
     # Configurações Pedagógicas
     SYLLABUS_PATH = os.path.join(os.path.dirname(__file__), "../data/ufsm_syllabus.json")
