@@ -1,9 +1,12 @@
 import streamlit as st
 from core import PhysicsOrchestrator, TutorIAAgent
 from pypdf import PdfReader
-import os
+import os, re
 from PIL import Image
 from config import Config
+from models.student_model import StudentModel
+import pandas as pd
+import plotly.express as px
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="TutorIAFisica - Multi-Model", layout="wide", page_icon="🌌")
@@ -144,6 +147,14 @@ def main():
 
     # --- BARRA LATERAL ---
     with st.sidebar:
+        st.markdown("## 🎓 Identificação do Aluno")
+        student_id_input = st.text_input("Nome ou Matrícula:", placeholder="ex: João Silva ou 202312345", key="student_id_input")
+        if student_id_input and st.session_state.get("student_id") != student_id_input:
+            st.session_state.student_id = student_id_input
+            st.session_state.student_model = StudentModel.load(student_id_input, data_dir="data/students")
+            st.success(f"✅ Identificado como: **{student_id_input}**")
+
+        st.divider()
         st.markdown("## ⚙️ Configurações de IA")
 
         # Seleção de Modelo
@@ -241,6 +252,13 @@ def main():
         st.markdown("### 🌐 Busca Web Inteligente")
         web_search_enabled = st.checkbox("Consultar portais acadêmicos + arXiv", value=True, key="web_search_toggle", help="Adiciona ~10-15 segundos, conecta dúvida a pesquisa real")
 
+    # --- NOTIFICAÇÃO DE REVISÕES PENDENTES ---
+    if "student_model" in st.session_state and st.session_state.student_model:
+        due = st.session_state.student_model.get_due_for_review()
+        if due:
+            due_list = ", ".join(c.topic for c in due[:5])
+            st.info(f"📅 **{len(due)} conceito(s) para revisar hoje:** {due_list}")
+
     # --- ENTRADA DO ALUNO ---
     enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: Explique a conservação de energia em um sistema...")
 
@@ -283,6 +301,13 @@ def main():
                     on_progress=st.write
                 )
                 st.session_state.last_result = res
+
+                # Update Student Model
+                if "student_model" in st.session_state and st.session_state.student_model and res.concepts:
+                    discipline = res.ufsm_alignment["nome"] if res.ufsm_alignment else ""
+                    st.session_state.student_model.update_after_session(res.concepts, discipline)
+                    st.session_state.student_model.save("data/students")
+                    st.session_state.last_seen_concept_id = re.sub(r"[^\w]", "_", res.concepts[0].lower()) if res.concepts else ""
 
                 if res.fallback_occurred:
                     st.warning(f"Fallback ativo. Usando **{res.used_model_display_name}** para a resposta.")
@@ -345,7 +370,7 @@ def main():
         if res.ufsm_alignment:
             st.markdown(f'<div class="ufsm-badge">🏛️ UFSM: {res.ufsm_alignment["codigo"]} - {res.ufsm_alignment["nome"]}</div>', unsafe_allow_html=True)
 
-        tab1, tab2, tab3, tab4 = st.tabs(["🧩 Diálogo Socrático", "📐 Solução Matemática", "🖼️ Visualização", "📚 Contexto UFSM"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧩 Diálogo Socrático", "📐 Solução Matemática", "🖼️ Visualização", "📚 Contexto UFSM", "📊 Meu Progresso"])
 
         with tab1:
             st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True); st.write(res.pergunta_socratica); st.markdown('</div>', unsafe_allow_html=True)
@@ -357,6 +382,43 @@ def main():
             st.markdown('<div class="agent-box border-visualizador">', unsafe_allow_html=True); st.code(res.code_snippet, language="python"); st.markdown('</div>', unsafe_allow_html=True)
         with tab4:
             st.markdown('<div class="agent-box border-curador">', unsafe_allow_html=True); st.markdown(res.mapa_mental_markdown); st.markdown('</div>', unsafe_allow_html=True)
+
+        with tab5:
+            sm = st.session_state.get("student_model")
+            if sm and sm.concepts:
+                records = sm.to_dataframe_records()
+                df = pd.DataFrame(records)
+                fig = px.treemap(
+                    df, path=["topic", "concept"], values="times_seen",
+                    color="mastery", color_continuous_scale=["#FF4B4B", "#FFA500", "#00CC44"],
+                    hover_data=["status", "times_seen"],
+                    title=f"Mapa de Domínio — {sm.student_id} ({sm.session_count} sessões)",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+                due = sm.get_due_for_review()
+                if due:
+                    st.subheader("📅 Revisões Sugeridas Hoje")
+                    for c in due:
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            st.write(f"**{c.topic}** ({c.ufsm_discipline or 'Geral'})")
+                        with col2:
+                            st.write(f"Nível: {c.mastery_level:.0%}")
+
+                total = len(sm.concepts)
+                mastered = sum(1 for c in sm.concepts.values() if c.status in ("mastered", "consolidated"))
+                st.metric("Conceitos Vistos", total)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Dominados", mastered)
+                with col2:
+                    total_q = sum(c.quiz_attempts for c in sm.concepts.values())
+                    correct_q = sum(c.quiz_correct for c in sm.concepts.values())
+                    acc = f"{correct_q/total_q:.0%}" if total_q > 0 else "–"
+                    st.metric("Acerto no Quiz", acc)
+            else:
+                st.info("Identifique-se na sidebar e faça sua primeira sessão para ver seu progresso aqui.")
 
         # --- AVALIAÇÃO FORMATIVA ---
         st.divider()
@@ -383,7 +445,13 @@ def main():
 
             resposta_aluno = st.text_input("Sua resposta:", key="student_answer_input")
 
-            if st.button("Enviar Resposta"):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                quiz_self_eval = st.radio("Você entendeu?", ["✅ Entendi", "❌ Ainda tenho dúvida"], horizontal=True, key="quiz_self_eval")
+            with col2:
+                send_button = st.button("Enviar Resposta")
+
+            if send_button:
                 if resposta_aluno:
                     # Instancia o avaliador para obter o feedback
                     # Usa o modelo que respondeu à consulta principal ou o fallback
@@ -403,6 +471,13 @@ def main():
                     st.session_state.quiz_feedback = feedback
                     st.session_state.quiz_answer_submitted = True # Marca que uma resposta foi enviada
                     st.session_state.quiz_visible = False # Esconde campos de resposta após enviar
+
+                    # Update Student Model com resultado do quiz
+                    if "student_model" in st.session_state and st.session_state.get("last_seen_concept_id"):
+                        correct = quiz_self_eval == "✅ Entendi"
+                        st.session_state.student_model.update_quiz_result(st.session_state.last_seen_concept_id, correct)
+                        st.session_state.student_model.save("data/students")
+
                     st.rerun() # Reexecuta a página para exibir o feedback fora do bloco quiz_visible
                 else:
                     st.warning("Por favor, digite uma resposta para o desafio.")
