@@ -6,6 +6,15 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { AgentOutput, reportBrokenLink } from "@/lib/api";
 
+// Convert TeX-style delimiters (\[...\] and \(...\)) to remark-math's $...$ syntax
+function normalizeLatex(content: string): string {
+  return content
+    .replace(/\\\[/g, "\n$$\n")   // \[ → display block
+    .replace(/\\\]/g, "\n$$\n")   // \] → display block
+    .replace(/\\\(/g, "$")        // \( → inline
+    .replace(/\\\)/g, "$");       // \) → inline
+}
+
 const AGENT_COLORS: Record<string, { icon: string; dotColor: string }> = {
   "Intérprete":   { icon: "🔵", dotColor: "bg-indigo-400" },
   "Solucionador": { icon: "🟢", dotColor: "bg-emerald-400" },
@@ -89,7 +98,7 @@ export function AgentPanel({
           remarkPlugins={[remarkMath]}
           rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
         >
-          {agent.content}
+          {normalizeLatex(agent.content)}
         </ReactMarkdown>
       </div>
 
