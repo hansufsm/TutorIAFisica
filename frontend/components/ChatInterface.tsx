@@ -2,26 +2,26 @@
 import { useState, useRef, useEffect } from "react";
 import { AgentPanel } from "./AgentPanel";
 import { VoiceInput } from "./VoiceInput";
-import { ThemeToggle } from "./ThemeToggle";
 import { askTutorStream, AgentOutput, DueReview } from "@/lib/api";
-import { Menu, X, Plus, MessageSquare, BookOpen, Settings, Send, ChevronDown } from "lucide-react";
+import { Plus, MessageSquare, BookOpen, Settings, Send, ChevronDown } from "lucide-react";
 
 const MODELS = ["DeepSeek Chat", "Gemini 2.0 Flash"];
 
-const QUICK_ACTIONS = [
-  { icon: "⚛️", label: "Conceito Físico", desc: "Entenda princípios fundamentais" },
-  { icon: "📐", label: "Resolver", desc: "Soluções passo a passo" },
-  { icon: "📊", label: "Visualizar", desc: "Gráficos e simulações" },
-  { icon: "🎯", label: "Desafio", desc: "Teste seu conhecimento" },
-];
-
 const AGENT_COLORS: Record<string, { icon: string; dotColor: string; activePill: string }> = {
-  "Intérprete": { icon: "🔵", dotColor: "bg-indigo-500", activePill: "bg-indigo-600 dark:bg-indigo-600" },
-  "Solucionador": { icon: "🟢", dotColor: "bg-emerald-500", activePill: "bg-emerald-600 dark:bg-emerald-600" },
-  "Visualizador": { icon: "🟠", dotColor: "bg-orange-500", activePill: "bg-orange-600 dark:bg-orange-600" },
-  "Curador": { icon: "🟣", dotColor: "bg-purple-500", activePill: "bg-purple-600 dark:bg-purple-600" },
-  "Avaliador": { icon: "🔴", dotColor: "bg-red-500", activePill: "bg-red-600 dark:bg-red-600" },
+  "Intérprete":   { icon: "🔵", dotColor: "bg-indigo-400",  activePill: "bg-indigo-600" },
+  "Solucionador": { icon: "🟢", dotColor: "bg-emerald-400", activePill: "bg-emerald-600" },
+  "Visualizador": { icon: "🟠", dotColor: "bg-orange-400",  activePill: "bg-orange-600" },
+  "Curador":      { icon: "🟣", dotColor: "bg-purple-400",  activePill: "bg-purple-600" },
+  "Avaliador":    { icon: "🔴", dotColor: "bg-red-400",     activePill: "bg-red-600" },
 };
+
+const SOURCE_HIERARCHY = [
+  { icon: "📝", label: "Notas de Aula",           desc: "Material direto do professor" },
+  { icon: "📚", label: "Documentos da Disciplina", desc: "Apostilas e slides adotados" },
+  { icon: "🏛️", label: "Ementa UFSM",             desc: "Conteúdo programático oficial" },
+  { icon: "🌐", label: "Portais Acadêmicos",       desc: "Repositórios .edu.br" },
+  { icon: "🤖", label: "Complementação de IA",     desc: "Síntese e enriquecimento" },
+];
 
 export function ChatInterface() {
   const [question, setQuestion] = useState("");
@@ -35,16 +35,23 @@ export function ChatInterface() {
   const [error, setError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [activeSource, setActiveSource] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [agents, loading]);
+
+  // Animate source hierarchy while loading
+  useEffect(() => {
+    if (!loading) { setActiveSource(0); return; }
+    const t = setInterval(() => {
+      setActiveSource((s) => (s + 1) % SOURCE_HIERARCHY.length);
+    }, 900);
+    return () => clearInterval(t);
+  }, [loading]);
 
   const autoResizeTextarea = () => {
     if (textareaRef.current) {
@@ -53,8 +60,15 @@ export function ChatInterface() {
     }
   };
 
-  async function submit() {
+  // Step 1: show confirmation
+  function requestSend() {
     if (!question.trim() || loading) return;
+    setShowConfirm(true);
+  }
+
+  // Step 2: confirmed → actually send
+  async function confirmAndSubmit() {
+    setShowConfirm(false);
     setLoading(true);
     setShowChat(true);
     setAgents([]);
@@ -62,11 +76,7 @@ export function ChatInterface() {
     setError(null);
 
     await askTutorStream(
-      {
-        question,
-        model_name: model,
-        student_email: "aluno@ufsm.br",
-      },
+      { question, model_name: model, student_email: "aluno@ufsm.br" },
       (agent) => {
         setStreamingAgent(agent.agent_name);
         setActiveTab(agent.agent_name);
@@ -86,172 +96,172 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 dark:bg-slate-950">
+    <div className="flex h-screen" style={{ background: "var(--bg-main)" }}>
+
       {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? "w-64" : "w-20"
-        } transition-all duration-300 border-r border-slate-700/50 dark:border-slate-700/50 glass flex flex-col p-4 overflow-y-auto`}
-      >
+      <aside className={`${sidebarOpen ? "w-64" : "w-16"} transition-all duration-300 sidebar-bg flex flex-col p-4 overflow-y-auto flex-shrink-0`}>
+
         {/* Logo + Toggle */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold">⚛️</span>
+          <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-base">⚛️</span>
           </div>
           {sidebarOpen && (
-            <div className="flex-1">
-              <h1 className="font-bold text-slate-50 dark:text-slate-50">TutorIA</h1>
-              <p className="text-xs text-slate-400 dark:text-slate-400">Física</p>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-bold text-stone-900 text-sm leading-tight">TutorIA</h1>
+              <p className="text-xs text-stone-500">Física UFSM</p>
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg text-slate-400 dark:text-slate-400 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 transition flex-shrink-0"
-            title={sidebarOpen ? "Fechar" : "Abrir"}
+            className="flex-shrink-0 text-xs font-mono font-bold text-stone-400 hover:text-stone-700 transition px-1"
+            title={sidebarOpen ? "Recolher" : "Expandir"}
           >
-            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+            {sidebarOpen ? "«" : "»"}
           </button>
         </div>
 
-        {/* Nav Items */}
+        {/* Nav */}
         {sidebarOpen && (
-          <nav className="space-y-2 mb-8 flex-1">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-indigo-600/20 to-indigo-600/10 text-indigo-300 text-sm font-medium transition hover:bg-gradient-to-r hover:from-indigo-600/30 hover:to-indigo-600/20 border border-indigo-500/20">
-              <Plus size={18} />
+          <nav className="space-y-1 mb-8 flex-1">
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-sm font-medium transition">
+              <Plus size={16} />
               <span>Nova Conversa</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800/30 text-sm transition">
-              <MessageSquare size={18} />
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-stone-600 hover:bg-stone-100 text-sm transition">
+              <MessageSquare size={16} />
               <span>Histórico</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800/30 text-sm transition">
-              <BookOpen size={18} />
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-stone-600 hover:bg-stone-100 text-sm transition">
+              <BookOpen size={16} />
               <span>Biblioteca</span>
             </button>
           </nav>
         )}
 
-        {/* Model Selector + Theme Toggle */}
-        <div className={`border-t border-slate-700/30 dark:border-slate-700/30 pt-4 space-y-3 ${!sidebarOpen && "text-center"}`}>
-          {sidebarOpen && <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 uppercase mb-3">Modelo</p>}
+        {/* Model Selector */}
+        <div className={`border-t pt-4 space-y-2 ${!sidebarOpen ? "hidden" : ""}`} style={{ borderColor: "var(--border)" }}>
+          <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Modelo</p>
           <div className="relative">
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="w-full text-sm btn-secondary appearance-none pr-8"
+              className="w-full text-sm appearance-none pr-7 py-2 px-3 rounded-lg border text-stone-800 bg-white"
+              style={{ borderColor: "var(--border)" }}
             >
               {MODELS.map((m) => (
-                <option key={m} value={m}>
-                  {sidebarOpen ? m : m.split(" ")[0]}
-                </option>
+                <option key={m} value={m}>{m}</option>
               ))}
             </select>
-            {sidebarOpen && <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400 pointer-events-none" />}
+            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
           </div>
-          {sidebarOpen && (
-            <>
-              <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 uppercase">Tema</p>
-              <ThemeToggle />
-            </>
-          )}
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="flex-1 flex flex-col overflow-hidden">
+
         {/* Header */}
-        <header className="border-b border-slate-700/30 dark:border-slate-700/30 px-8 py-4 glass-sm flex items-center justify-between">
+        <header className="glass-sm px-8 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-50 dark:text-slate-50">TutorIA Física 1.0</h1>
-            <p className="text-xs text-slate-400 dark:text-slate-400">Mentor inteligente para ensino de física</p>
+            <h1 className="text-lg font-bold text-stone-900">TutorIA Física 1.0</h1>
+            <p className="text-xs text-stone-500">Mentor inteligente para ensino de física — UFSM</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="p-2 rounded-lg text-slate-400 dark:text-slate-400 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 transition">
-              <Settings size={20} />
-            </button>
-          </div>
+          <button className="p-2 rounded-lg text-stone-400 hover:bg-stone-100 transition">
+            <Settings size={19} />
+          </button>
         </header>
 
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto px-8 py-8">
           {!showChat ? (
-            /* Welcome State */
-            <div className="h-full flex items-center justify-center">
-              <div className="max-w-3xl w-full">
-                {/* Hero Section */}
-                <div className="text-center mb-12 animate-fade-in">
-                  <div className="inline-block mb-6">
-                    <div className="text-6xl">⚛️</div>
-                  </div>
-                  <h2 className="text-5xl font-bold text-slate-50 dark:text-slate-50 mb-4">
-                    Bem-vindo ao <span className="gradient-text">TutorIA</span>
-                  </h2>
-                  <p className="text-lg text-slate-400 dark:text-slate-400 mb-8">
-                    Seu mentor inteligente para dominar Física. Conceitos, soluções e desafios.
-                  </p>
-                </div>
 
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-4">
-                  {QUICK_ACTIONS.map((action, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setQuestion(action.label);
-                        submit();
-                      }}
-                      className="group p-6 rounded-xl glass hover:glass border-slate-600/30 dark:border-slate-600/30 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all duration-300 text-left hover:shadow-lg hover:shadow-indigo-500/10 dark:hover:shadow-indigo-500/10 active:scale-95"
-                    >
-                      <div className="text-3xl mb-3 group-hover:scale-110 transition">{action.icon}</div>
-                      <h3 className="font-semibold text-slate-50 dark:text-slate-50 mb-1">{action.label}</h3>
-                      <p className="text-sm text-slate-400 dark:text-slate-400">{action.desc}</p>
-                    </button>
-                  ))}
-                </div>
+            /* Welcome */
+            <div className="h-full flex items-center justify-center">
+              <div className="max-w-lg w-full text-center animate-fade-in">
+                <div className="text-5xl mb-5">⚛️</div>
+                <h2 className="text-4xl font-bold text-stone-900 mb-3">
+                  Bem-vindo ao <span className="gradient-text">TutorIA</span>
+                </h2>
+                <p className="text-stone-500 text-base">
+                  Seu mentor inteligente para dominar Física universitária.
+                  <br />Digite sua dúvida abaixo para começar.
+                </p>
               </div>
             </div>
+
           ) : (
-            /* Chat State */
+
+            /* Chat */
             <div className="max-w-2xl mx-auto w-full">
+
               {/* Due Reviews */}
               {due.length > 0 && (
-                <div className="mb-6 p-4 glass rounded-lg border border-slate-600/20 dark:border-slate-600/20 animate-slide-in-up">
-                  <p className="text-sm font-semibold text-slate-50 dark:text-slate-50 mb-3">📚 Para revisar:</p>
+                <div className="mb-6 p-4 bg-white border rounded-xl animate-slide-in-up" style={{ borderColor: "var(--border)" }}>
+                  <p className="text-xs font-semibold text-stone-700 mb-2">📚 Para revisar:</p>
                   <div className="flex flex-wrap gap-2">
                     {due.map((d) => (
-                      <span
-                        key={d.concept_id}
-                        className="px-3 py-1 bg-slate-700/30 dark:bg-slate-700/30 border border-slate-600/30 dark:border-slate-600/30 text-slate-300 dark:text-slate-300 rounded text-xs font-medium"
-                      >
-                        {d.concept_id} • {Math.round(d.mastery_level * 100)}%
+                      <span key={d.concept_id} className="px-3 py-1 bg-stone-100 border text-stone-700 rounded-full text-xs font-medium" style={{ borderColor: "var(--border)" }}>
+                        {d.concept_id} · {Math.round(d.mastery_level * 100)}%
                       </span>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Agents Tabs */}
+              {/* Source Hierarchy Loading Card */}
+              {loading && !agents.length && (
+                <div className="animate-fade-in mb-8">
+                  <div className="bg-white border rounded-xl p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-4 h-4 rounded-full border-2 border-stone-200 border-t-indigo-500 animate-spin flex-shrink-0" />
+                      <p className="text-sm font-semibold text-stone-800">Consultando Fontes</p>
+                    </div>
+                    <div className="space-y-1">
+                      {SOURCE_HIERARCHY.map((src, i) => (
+                        <div
+                          key={i}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-500 ${
+                            activeSource === i ? "bg-indigo-50 border border-indigo-100" : "bg-transparent"
+                          }`}
+                        >
+                          <span className="text-base leading-none">{src.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-medium transition-colors ${activeSource === i ? "text-indigo-700" : "text-stone-600"}`}>
+                              {src.label}
+                            </p>
+                            <p className="text-xs text-stone-400 truncate">{src.desc}</p>
+                          </div>
+                          {activeSource === i && (
+                            <span className="text-xs text-indigo-500 animate-pulse-soft font-medium">Buscando…</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Priority flow indicator */}
+                    <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-xs text-stone-400 text-center">Prioridade: Notas → Disciplina → Ementa → Web → IA</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Agent Tabs */}
               {agents.length > 0 && (
                 <>
                   <div className="flex gap-2 flex-wrap mb-4">
                     {agents.map((a) => {
-                      const config = AGENT_COLORS[a.agent_name] || {
-                        icon: "⚙️",
-                        dotColor: "bg-slate-500",
-                        activePill: "bg-slate-600 dark:bg-slate-600",
-                      };
+                      const config = AGENT_COLORS[a.agent_name] || { icon: "⚙️", dotColor: "bg-stone-400", activePill: "bg-stone-600" };
                       const isActive = activeTab === a.agent_name;
                       return (
                         <button
                           key={a.agent_name}
                           onClick={() => setActiveTab(a.agent_name)}
-                          className={`
-                            flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all
-                            ${isActive
-                              ? `${config.activePill} text-white shadow-md`
-                              : "bg-slate-800/50 dark:bg-slate-700/50 text-slate-400 dark:text-slate-400 hover:text-slate-200 dark:hover:text-slate-200 hover:bg-slate-700/50 dark:hover:bg-slate-600/50"}
-                            ${streamingAgent === a.agent_name ? "animate-pulse-soft" : ""}
-                          `}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                            isActive
+                              ? `${config.activePill} text-white shadow-sm`
+                              : "bg-stone-100 text-stone-600 hover:bg-stone-200 border border-stone-200"
+                          } ${streamingAgent === a.agent_name ? "animate-pulse-soft" : ""}`}
                         >
                           <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
                           {config.icon} {a.agent_name}
@@ -260,7 +270,6 @@ export function ChatInterface() {
                     })}
                   </div>
 
-                  {/* Active Agent Content */}
                   {activeTab && (
                     <div className="mb-8 animate-slide-in-up">
                       <AgentPanel
@@ -274,31 +283,13 @@ export function ChatInterface() {
                 </>
               )}
 
-              {/* Error */}
+              {/* Error Toast */}
               {error && (
-                <div className="fixed bottom-20 left-1/2 -translate-x-1/2 max-w-md z-50 animate-slide-in-up">
-                  <div className="p-3 rounded-lg bg-red-950/80 dark:bg-red-950/80 border border-red-500/30 dark:border-red-500/30 text-red-200 dark:text-red-200 text-sm flex items-start gap-3 shadow-lg backdrop-blur">
-                    <span className="text-lg flex-shrink-0">⚠️</span>
-                    <div className="flex-1">
-                      <p className="font-medium text-red-100 dark:text-red-100">Erro</p>
-                      <p className="text-red-300 dark:text-red-300 text-xs mt-1">{error}</p>
-                    </div>
-                    <button
-                      onClick={() => setError(null)}
-                      className="flex-shrink-0 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 transition"
-                      title="Fechar"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {loading && !agents.length && (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-center">
-                    <div className="inline-block w-8 h-8 rounded-full border-2 border-slate-700 border-t-indigo-500 animate-spin mb-4"></div>
-                    <p className="text-slate-400">Processando sua pergunta...</p>
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 max-w-sm z-50 animate-slide-in-up">
+                  <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 shadow-md">
+                    <span className="flex-shrink-0">⚠️</span>
+                    <p className="flex-1">{error}</p>
+                    <button onClick={() => setError(null)} className="flex-shrink-0 text-red-400 hover:text-red-600 transition font-bold">×</button>
                   </div>
                 </div>
               )}
@@ -309,49 +300,72 @@ export function ChatInterface() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-700/30 dark:border-slate-700/30 glass-sm px-8 py-6">
+        <div className="relative glass-sm px-8 py-5">
+
+          {/* Confirmation overlay */}
+          {showConfirm && (
+            <div className="absolute bottom-full left-0 right-0 px-8 pb-2 z-20 animate-slide-in-up">
+              <div className="max-w-2xl mx-auto bg-white border rounded-xl p-4 shadow-lg" style={{ borderColor: "var(--border)" }}>
+                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1">Confirmar envio</p>
+                <p className="text-sm text-stone-800 line-clamp-3 mb-3 leading-relaxed">
+                  {question}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmAndSubmit}
+                    className="px-4 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-all active:scale-95"
+                  >
+                    ✓ Enviar
+                  </button>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="px-4 py-1.5 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium transition-all border border-stone-200 active:scale-95"
+                  >
+                    ← Editar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="max-w-2xl mx-auto">
             <div className="flex gap-3">
               <div className="flex-1">
                 <textarea
                   ref={textareaRef}
-                  className="w-full bg-slate-800/50 dark:bg-slate-800/50 border border-slate-700/50 dark:border-slate-700/50 rounded-xl p-4 text-sm resize-none placeholder-slate-500 dark:placeholder-slate-500 text-slate-50 dark:text-slate-50 transition-all backdrop-blur focus:outline-none focus:border-indigo-500/50 dark:focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-500/20 focus:bg-slate-800/80 dark:focus:bg-slate-800/80 max-h-32"
+                  className="w-full rounded-xl px-4 py-3 text-sm resize-none max-h-32 border focus:outline-none focus:ring-2 focus:ring-indigo-400/30 text-stone-900 placeholder-stone-400 bg-white"
+                  style={{ borderColor: "var(--border)" }}
                   rows={2}
-                  placeholder="Pergunte qualquer coisa sobre Física... (Shift+Enter para quebra de linha)"
+                  placeholder="Pergunte qualquer coisa sobre Física… (Enter para enviar)"
                   value={question}
-                  onChange={(e) => {
-                    setQuestion(e.target.value);
-                    autoResizeTextarea();
-                  }}
+                  onChange={(e) => { setQuestion(e.target.value); autoResizeTextarea(); }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      submit();
+                      requestSend();
                     }
                   }}
                 />
               </div>
               <div className="flex flex-col gap-2 justify-end">
-                <VoiceInput onTranscript={(t) => {
-                  setQuestion(t);
-                  autoResizeTextarea();
-                }} />
+                <VoiceInput onTranscript={(t) => { setQuestion(t); autoResizeTextarea(); }} />
                 <button
-                  onClick={submit}
+                  onClick={requestSend}
                   disabled={loading || !question.trim()}
-                  className="btn-primary p-3 flex items-center justify-center gap-2"
+                  className="btn-primary p-3"
                 >
-                  {loading ? (
-                    <span className="inline-block animate-spin">⟳</span>
-                  ) : (
-                    <Send size={18} />
-                  )}
+                  {loading
+                    ? <span className="inline-block animate-spin text-base">⟳</span>
+                    : <Send size={17} />}
                 </button>
               </div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 text-center">Pressione <kbd className="px-2 py-1 bg-slate-800 dark:bg-slate-800 rounded text-slate-400 dark:text-slate-400">Shift+Enter</kbd> para nova linha</p>
+            <p className="text-xs text-stone-400 mt-2 text-center">
+              <kbd className="px-2 py-0.5 bg-stone-100 border border-stone-200 rounded text-stone-500 text-xs">Shift+Enter</kbd> para nova linha
+            </p>
           </div>
         </div>
+
       </main>
     </div>
   );
