@@ -82,8 +82,6 @@ async def ask_tutor(req: TutorRequest):
         agents=agents_out,
         used_model=result.used_model_display_name or req.model_name,
         fallback_occurred=result.fallback_occurred or False,
-        visualization_code=result.visualization_code,
-        formative_challenge=result.formative_challenge,
         due_for_review=due[:3],  # máximo 3 sugestões
     )
 
