@@ -11,7 +11,10 @@ services:
       - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: FRONTEND_URL
-        value: https://tutor-ia-fisica.pages.dev
+        # Vercel deployment URL — update after deploying frontend to Vercel
+        # Format: https://<project-name>.vercel.app or custom domain
+        # Configure via Render dashboard after Vercel deployment
+        value: https://YOUR_VERCEL_DOMAIN.vercel.app
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_API_KEY
