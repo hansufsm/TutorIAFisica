@@ -51,7 +51,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold mb-2 text-center">🌌 TutorIA Física</h1>
+        <h1 className="text-4xl font-bold mb-2 text-center">🌌 TutorIA Física v2026</h1>
         <p className="text-gray-400 text-center mb-8">
           Mentor inteligente para ensino de física universitária
         </p>
