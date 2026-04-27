@@ -342,18 +342,20 @@ student_model.save()
 
 ## Deployment
 
-### Frontend (Cloudflare Workers via Vercel)
+**For complete deployment guide with integration checklist and troubleshooting, see:** [`docs/DEPLOY_COMPLETE.md`](docs/DEPLOY_COMPLETE.md)
 
-**Live:** https://tutoriafisica.hans-059.workers.dev
+### Frontend (Vercel)
+
+**Live:** https://tutoriafisica.vercel.app
 
 **Deploy Process:**
-1. Vercel reads `vercel.json` at root (specifies `frontend/` as build directory)
-2. Runs `cd frontend && npm run build` and outputs to `frontend/.next`
-3. Cloudflare Workers integration auto-deploys built assets
+1. Vercel reads `vercel.json` at root (specifies build commands for `frontend/`)
+2. On `main` branch push, runs `cd frontend && npm run build` and deploys to CDN
+3. Automatic deployment via GitHub webhook
 
-**Environment Variables** (set in Vercel UI or via `vercel env`):
+**Environment Variables** (set in Vercel Dashboard → Settings → Environment Variables):
 ```
-NEXT_PUBLIC_API_URL = https://tutor-ia-fisica-api.onrender.com
+NEXT_PUBLIC_API_URL=https://tutor-ia-fisica-api.onrender.com
 ```
 
 **Deployment Checklist:**
