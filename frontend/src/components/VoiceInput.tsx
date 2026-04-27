@@ -53,24 +53,14 @@ export function VoiceInput({
   return (
     <button
       onClick={rec ? stop : start}
-      className={`px-6 py-3 rounded-full transition-all font-semibold text-sm flex items-center justify-center gap-2 min-w-fit font-geist ${
+      className={`px-4 py-3 rounded-lg transition text-white flex items-center justify-center gap-2 ${
         rec
-          ? "bg-rose-600 hover:bg-rose-700 text-white shadow-sm animate-pulse-soft"
-          : "bg-slate-100 border border-slate-300 text-slate-900 hover:bg-slate-200 shadow-sm"
+          ? "bg-red-600 hover:bg-red-700"
+          : "bg-slate-200 hover:bg-slate-300 text-slate-900"
       }`}
       title={rec ? "Parar gravação" : "Iniciar gravação"}
     >
-      {rec ? (
-        <>
-          <MicOff size={18} />
-          <span className="hidden sm:inline">Parar</span>
-        </>
-      ) : (
-        <>
-          <Mic size={18} />
-          <span className="hidden sm:inline">Falar</span>
-        </>
-      )}
+      {rec ? <MicOff size={18} /> : <Mic size={18} />}
     </button>
   );
 }

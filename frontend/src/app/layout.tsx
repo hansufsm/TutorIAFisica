@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Geist } from "next/font/google";
+import { Inter, Crimson_Text } from "next/font/google";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const inter = Inter({ subsets: ["latin"] });
+const crimson = Crimson_Text({ subsets: ["latin"], weight: ["400", "600"], variable: "--font-crimson" });
 
 export const metadata: Metadata = {
   title: "TutorIA Física — UFSM",
@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${jakarta.variable} ${geist.variable}`}>
-      <body className="font-geist bg-white text-slate-900 antialiased">
+    <html lang="pt-BR">
+      <body className={`${inter.className} bg-white text-slate-800 antialiased`}>
         {children}
       </body>
     </html>
