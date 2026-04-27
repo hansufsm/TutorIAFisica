@@ -20,14 +20,18 @@ Frontend foi migrado de Cloudflare Workers para Vercel. Cron job para Supabase k
 
 ### 3️⃣ Configurar Projeto
 
-Na tela de configuração do projeto:
+Na tela de configuração do projeto, **ANTES de clicar Deploy**:
 
-**Root Directory:** (importante!)
-```
-frontend
-```
+#### 🔴 CRITICAL: Root Directory
 
-Clique em "Root Directory" e selecione a pasta `frontend`
+1. Localize o campo **"Root Directory"** (geralmente no topo da página de configuração)
+2. **Clique no campo** (pode ser um dropdown ou input)
+3. **Selecione ou digite:** `frontend`
+   - ❌ Não deixe em branco (padrão é raiz do repositório)
+   - ❌ Não use `./frontend` ou `/frontend`
+   - ✅ Use apenas: `frontend`
+
+Se essa configuração estiver errada, Vercel procura por `package.json` na raiz e não encontra Next.js.
 
 ### 4️⃣ Configurar Variáveis de Ambiente
 

@@ -86,10 +86,14 @@ Isto permite que o backend validar requisições CORS da sua URL de produção.
 - Procure `TutorIAFisica` na lista de repositórios GitHub
 - Clique **"Import"**
 
-#### 3. Configurar Raiz
-Na tela de configuração:
-- **Root Directory:** selecione `frontend` (crítico!)
-- Framework: auto-detecta Next.js
+#### 3. Configurar Raiz (CRÍTICO — veja troubleshooting se errar)
+Na tela de configuração, **ANTES de Deploy**:
+- **Root Directory:** 
+  - ❌ **NÃO deixe em branco** (procura por package.json na raiz)
+  - ❌ **NÃO use** `./frontend` ou `/frontend`
+  - ✅ **USE:** `frontend` (exatamente assim)
+  - Se estiver errado aqui, você terá erro "No Next.js version detected"
+- Framework: auto-detecta Next.js (se Root Directory correto)
 - Build Command: padrão (`npm run build`)
 - Output Directory: `.next` (padrão)
 
@@ -266,9 +270,33 @@ Cloudflare redeploy automático via Wrangler se habilitado.
 
 ## 8. Troubleshooting
 
+### "No Next.js version detected" — Erro na Import
+
+**Erro exato:**
+```
+Warning: Could not identify Next.js version, ensure it is defined as a project dependency.
+Error: No Next.js version detected. Make sure your package.json has "next" in 
+either "dependencies" or "devDependencies".
+```
+
+**Causa:** Root Directory não foi configurado para `frontend`
+
+**Solução:**
+1. **Volte para a página de import** (ou project settings)
+2. Localize campo **"Root Directory"**
+3. Mude para: `frontend` (EXATAMENTE assim, sem `./` ou `/`)
+4. Clique **Save** ou **Redeploy**
+5. Aguarde build novamente
+
+**Verificação rápida:**
+- Vercel dashboard → projeto → **Settings** → **General**
+- Procure por **"Root Directory"** — deve mostrar `frontend`
+
+---
+
 ### Build Falhou no Vercel
 
-**Erro típico:** `next build` com import issues ou TypeScript
+**Erro típico:** `next build` com import issues ou TypeScript (após Root Directory correto)
 
 **Solução:**
 1. Clique em **Deployments** → build falhado → **View Details**
