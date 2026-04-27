@@ -59,6 +59,56 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Broken Link Reporting System
+
+**Commits:** `072d8ac`
+
+### O que foi feito
+- ✅ **Backend: Broken Link Reports Table**:
+  - Nova tabela Supabase: `broken_link_reports` (student_id, session_id, agent_name, url, note, reported_at)
+  - Migration: `supabase/migrations/002_broken_link_reports.sql` com RLS habilitado
+  - Nova schema: `BrokenLinkReport` em `request.py`
+  - Helper DB: `log_broken_link()` em `student_model.py`
+
+- ✅ **Backend: Session ID Tracking**:
+  - Modificado `log_session()` para retornar UUID da sessão
+  - Endpoints `/ask` e `/ask/stream` agora incluem `session_id` no response
+  - Permite rastrear qual sessão gerou cada report de link quebrado
+
+- ✅ **Backend: Novo Endpoint**:
+  - `POST /tutor/report-link` com schema `BrokenLinkReport`
+  - Recebe: student_email, session_id (opcional), agent_name, url, note (opcional)
+  - Persiste no Supabase para análise posterior
+
+- ✅ **Frontend: API Client**:
+  - `reportBrokenLink()` function em `api.ts`
+  - `askTutorStream` atualizado para capturar e retornar session_id
+  - TutorResponse interface inclui `session_id`
+
+- ✅ **Frontend: UI**:
+  - Botão pill "🔗 Reportar referência quebrada" no rodapé de cada AgentPanel
+  - Mini form inline com:
+    - Input obrigatório: URL do link quebrado
+    - Textarea opcional: descrição do problema (ex: "404", "site fora do ar")
+    - Botões pill: "Enviar" e "Cancelar"
+  - Estados: button → form → ✅ confirmação (2s) → auto-close
+  - ChatInterface passa `sessionId` e `studentEmail` para AgentPanel
+
+### Por que foi necessário
+- Usuário pediu funcionalidade para estudantes reportarem referências inexistentes/links quebrados
+- Solução: canalizar feedback estruturado → Supabase para análise
+- Impacto: melhora continuamente a qualidade das fontes cuidadas pelo Curador
+
+### Status
+🟢 **COMPLETO** — Build sem erros, API implementada end-to-end, UI integrada
+
+### Próximos Passos
+1. Rodar migration SQL no Supabase dashboard para criar tabela
+2. Teste manual: enviar pergunta → clicar "Reportar referência" → verificar no Supabase
+3. Dashboard futuro: admin pode visualizar reports e melhorar fontes
+
+---
+
 ## 📅 2026-04-27 — Frontend UX Polish: Sidebar Toggle + Error Handling
 
 **Commit:** `2f1a00e`
