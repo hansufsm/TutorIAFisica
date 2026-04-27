@@ -223,11 +223,11 @@ class TutorIAAgent:
             raise RuntimeError(f"Unexpected error with {model_id}: {str(e)}") from e
 
 class PhysicsOrchestrator:
-    def __init__(self, selected_model_display_name: str, runtime_keys: Dict[str, str]):
-        self.selected_model_display_name = selected_model_display_name
-        self.runtime_keys = runtime_keys
-        self.model_id = Config.get_model_id(selected_model_display_name)
-        self.is_multimodal = Config.is_model_multimodal(selected_model_display_name)
+    def __init__(self, selected_model_display_name: str = None, runtime_keys: Dict[str, str] = None):
+        self.selected_model_display_name = selected_model_display_name or "Gemini 3.0 Preview"
+        self.runtime_keys = runtime_keys or {}
+        self.model_id = Config.get_model_id(self.selected_model_display_name)
+        self.is_multimodal = Config.is_model_multimodal(self.selected_model_display_name)
         
         self.used_model_display_name: Optional[str] = None
         self.fallback_occurred: bool = False
@@ -388,6 +388,146 @@ class PhysicsOrchestrator:
         if on_progress: on_progress("✅ Avaliador concluído")
 
         return state
+
+    def process(self, state: PhysicsState, model_id: str = None, api_key: str = None) -> PhysicsState:
+        """
+        Interface simplificada para backend FastAPI.
+        Usa model_id e api_key passados diretamente.
+        """
+        if model_id:
+            # Obter nome de exibição do model_id
+            model_name = Config.get_model_display_name_by_id(model_id)
+            self.selected_model_display_name = model_name or "Unknown"
+            self.model_id = model_id
+
+        if api_key:
+            # Adicionar chave ao runtime_keys
+            key_name = Config.get_provider_key_name(self.selected_model_display_name)
+            if key_name:
+                self.runtime_keys[key_name] = api_key
+
+        # Usar o state fornecido ou criar novo
+        if not isinstance(state, PhysicsState):
+            state = PhysicsState(str(state))
+
+        input_data = state.raw_input
+
+        # Executar pipeline
+        state.sync_external_data()
+
+        # Intérprete
+        context = state.build_context() if state.build_context() else ""
+        response, model_name_used, fb = self._attempt_model_call("interpreter", input_data, context, state.image_input)
+        state.pergunta_socratica = response
+        if "," in response:
+            state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
+        else:
+            state.concepts = ["Física Geral"]
+        state._check_ufsm_syllabus()
+        if fb: state.fallback_occurred = True
+        state.used_model_display_name = model_name_used
+
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Solucionador
+        context = state.build_context() if state.build_context() else ""
+        response, model_name_used, fb = self._attempt_model_call("solver", input_data, context, state.image_input)
+        state.solution_steps = response
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Visualizador
+        response, model_name_used, fb = self._attempt_model_call("visualizer", input_data, context, state.image_input)
+        state.code_snippet = response.replace("```python", "").replace("```", "").strip()
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Curador
+        response, model_name_used, fb = self._attempt_model_call("curator", input_data, context, state.image_input)
+        state.mapa_mental_markdown = response
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Avaliador
+        response, model_name_used, fb = self._attempt_model_call("evaluator", input_data, context, state.image_input)
+        state.quiz_question = response
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+
+        return state
+
+    def process_streaming(self, state: PhysicsState, model_id: str = None, api_key: str = None):
+        """
+        Versão generator (streaming) para SSE.
+        Faz yield (agent_name, content) após cada agente.
+        """
+        if model_id:
+            model_name = Config.get_model_display_name_by_id(model_id)
+            self.selected_model_display_name = model_name or "Unknown"
+            self.model_id = model_id
+
+        if api_key:
+            key_name = Config.get_provider_key_name(self.selected_model_display_name)
+            if key_name:
+                self.runtime_keys[key_name] = api_key
+
+        if not isinstance(state, PhysicsState):
+            state = PhysicsState(str(state))
+
+        input_data = state.raw_input
+        state.sync_external_data()
+
+        # Intérprete
+        context = state.build_context() if state.build_context() else ""
+        response, model_name_used, fb = self._attempt_model_call("interpreter", input_data, context, state.image_input)
+        state.pergunta_socratica = response
+        if "," in response:
+            state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
+        else:
+            state.concepts = ["Física Geral"]
+        state._check_ufsm_syllabus()
+        if fb: state.fallback_occurred = True
+        state.used_model_display_name = model_name_used
+        yield ("Intérprete", response)
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Solucionador
+        context = state.build_context() if state.build_context() else ""
+        response, model_name_used, fb = self._attempt_model_call("solver", input_data, context, state.image_input)
+        state.solution_steps = response
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+        yield ("Solucionador", response)
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Visualizador
+        response, model_name_used, fb = self._attempt_model_call("visualizer", input_data, context, state.image_input)
+        state.code_snippet = response.replace("```python", "").replace("```", "").strip()
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+        yield ("Visualizador", response)
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Curador
+        response, model_name_used, fb = self._attempt_model_call("curator", input_data, context, state.image_input)
+        state.mapa_mental_markdown = response
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+        yield ("Curador", response)
+        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+
+        # Avaliador
+        response, model_name_used, fb = self._attempt_model_call("evaluator", input_data, context, state.image_input)
+        state.quiz_question = response
+        if fb: state.fallback_occurred = True
+        if model_name_used: state.used_model_display_name = model_name_used
+        yield ("Avaliador", response)
 
 if __name__ == "__main__":
     # --- Teste Básico de Fallback ---
