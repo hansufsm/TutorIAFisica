@@ -59,10 +59,39 @@ st.markdown("""
     .agent-avaliador, .border-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; } /* Vermelho */
     .border-interprete { border-left: 8px solid #007bff; background-color: #e6f0ff; } /* Azul */
 
-    /* Scrollbar personalizada */
+    /* Scrollbar personalizada — light theme colors */
     ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #0e1117; }
-    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+    ::-webkit-scrollbar-track { background: #ffffff; }
+    ::-webkit-scrollbar-thumb { background: #d0d2d8; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8adb8; }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 768px) {
+      /* Reduce padding on mobile */
+      .main { padding: 0.5rem; }
+
+      /* Reduce font sizes */
+      h1 { font-size: 1.5rem; }
+      h2 { font-size: 1.25rem; }
+      h3 { font-size: 1.1rem; }
+
+      /* Full-width buttons */
+      button { width: 100%; }
+
+      /* Better textarea on mobile */
+      textarea { font-size: 16px; /* Prevents zoom-on-focus */ }
+
+      /* Reduce sidebar padding */
+      [data-testid="stSidebar"] { padding: 0.5rem; }
+    }
+
+    @media (max-width: 480px) {
+      /* Extra-small phones */
+      h1 { font-size: 1.25rem; }
+      h2 { font-size: 1.1rem; }
+      button { padding: 0.5rem 1rem; }
+      .main { padding: 0.25rem; }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -80,26 +109,59 @@ def main():
     st.title("🌌 TutorIAFisica: Mentor Multi-Model")
     st.caption("v4.3 | Seleção Flexível de Modelos com Fallback Automático e Gerenciamento de Chaves")
 
+    # --- ONBOARDING ---
+    with st.expander("ℹ️ Como usar o TutorIAFisica (clique para expandir)", expanded=False):
+        st.markdown("""
+        ### 🎓 Você tem um esquadrão de 4 especialistas
+
+        **🔵 Intérprete** — Faz perguntas reflexivas para você pensar (método socrático)
+        **🟢 Solucionador** — Resolve com rigor matemático e unidades SI
+        **🟠 Visualizador** — Cria gráficos e código interativo
+        **🟣 Curador** — Conecta sua dúvida a materiais acadêmicos reais
+
+        ### 📝 Passos Básicos
+
+        1. **Descreva sua dúvida** na caixa de texto (abaixo)
+        2. **Opcionalmente:** carregue um PDF/imagem ou links de materiais (sidebar)
+        3. **Clique "Iniciar Análise"** para processar
+        4. **Veja 4 respostas** em abas diferentes (uma por especialista)
+        5. **Clique "Desafie-me!"** para testar seu conhecimento com um quiz
+
+        ### ❓ FAQ
+
+        **P: Por que 4 respostas diferentes?**
+        A: Cada agente tem uma perspectiva pedagógica diferente. Juntas, criam uma compreensão profunda.
+
+        **P: O que é "método socrático"?**
+        A: Técnica onde o professor (aqui, o Intérprete) faz perguntas em vez de dar respostas diretas. Você aprende questionando.
+
+        **P: Como funciona a busca de materiais?**
+        A: O sistema busca em 5 níveis: suas notas → documentos adotados → ementa UFSM → portais .edu.br → arXiv & Semantic Scholar.
+
+        **P: Posso usar isso offline?**
+        A: Não, precisa de internet (chaves de API de modelos LLM + busca web).
+        """)
+
     # --- BARRA LATERAL ---
     with st.sidebar:
-        st.header("⚙️ Configurações de IA")
-        
+        st.markdown("## ⚙️ Configurações de IA")
+
         # Seleção de Modelo
         available_model_names = list(Config.AVAILABLE_MODELS.keys())
         default_model_name = Config.DEFAULT_MODEL_DISPLAY_NAME
         default_index = available_model_names.index(default_model_name) if default_model_name in available_model_names else 0
-        
+
         selected_model_display_name = st.selectbox(
             "Escolha o Motor de IA:",
             available_model_names,
             index=default_index,
             key="model_selector"
         )
-        
+
         # Persistência da escolha do modelo na sessão
         if "selected_model_display_name" not in st.session_state:
             st.session_state.selected_model_display_name = selected_model_display_name
-        
+
         current_selection_in_state = st.session_state.selected_model_display_name
         if current_selection_in_state != selected_model_display_name:
             st.session_state.selected_model_display_name = selected_model_display_name
@@ -108,19 +170,19 @@ def main():
         # Gerenciamento de Chaves API
         runtime_keys = {}
         keys_to_prompt_names = []
-        
+
         # Identifica quais chaves API são necessárias com base na ordem de preferência
         # e quais estão faltando no .env. Prioriza o modelo selecionado.
         models_to_check_keys = [st.session_state.selected_model_display_name] + [
             m for m in Config.MODEL_PREFERENCE_ORDER if m != st.session_state.selected_model_display_name
         ]
-        
+
         for model_name_to_check in models_to_check_keys:
             key_name = Config.get_provider_key_name(model_name_to_check)
             if key_name and not os.getenv(key_name): # Se a chave não está no .env
                 if key_name not in keys_to_prompt_names:
                     keys_to_prompt_names.append(key_name)
-        
+
         if keys_to_prompt_names:
             with st.container():
                 st.warning(f"Chave API para **{st.session_state.selected_model_display_name}** não encontrada no `.env`.")
@@ -129,14 +191,15 @@ def main():
                     if user_key:
                         runtime_keys[key_name_to_get] = user_key
                         st.success(f"Chave '{key_name_to_get}' inserida para esta sessão.")
-        
+
         model_is_multimodal = Config.is_model_multimodal(st.session_state.selected_model_display_name)
-        if not model_is_multimodal:
-            st.warning("O modelo selecionado não suporta entrada de imagem. O upload de foto será ignorado.")
 
         st.divider()
-        st.header("👨‍🏫 Notas Manuais")
-        uploaded_file = st.file_uploader("Upload extra (PDF/TXT)", type=["pdf", "txt"])
+        st.markdown("## 📚 Materiais de Entrada")
+
+        st.markdown("### 👨‍🏫 Notas Manuais")
+        st.markdown("*Suas anotações, resumos, ou PDF do material didático*")
+        uploaded_file = st.file_uploader("Upload PDF/TXT", type=["pdf", "txt"], key="manual_upload")
         manual_notes = ""
         if uploaded_file:
             if uploaded_file.type == "application/pdf":
@@ -149,32 +212,34 @@ def main():
                 manual_notes = uploaded_file.read().decode("utf-8")
                 st.info(f"✅ TXT carregado ({len(manual_notes)} caracteres).")
 
-        st.divider()
-        st.header("📷 Entrada de Imagem")
+        st.markdown("### 📷 Entrada de Imagem (Opcional)")
         if model_is_multimodal:
-            input_image = st.file_uploader("Upload de Imagem (foto do problema):", type=["png", "jpg", "jpeg", "webp"])
+            st.markdown("*Foto de diagrama, equação manuscrita, ou gráfico*")
+            input_image = st.file_uploader("Upload PNG/JPG", type=["png", "jpg", "jpeg", "webp"], key="image_upload")
         else:
+            st.info(f"❌ **{st.session_state.selected_model_display_name}** não processa imagens. Modelos com suporte: Gemini, Claude, OpenAI Vision.")
             input_image = None
 
         st.divider()
-        st.header("☁️ Material pCloud do Aluno")
-        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.com/#/publink?code=SEU_CODIGO")
-        st.caption("Link único por sessão — PDFs que o aluno envia para esta dúvida.")
+        st.markdown("## ☁️ Materiais do Professor & Disciplina")
+
+        st.markdown("### ☁️ Material da Sessão (Seu pCloud)")
+        st.markdown("*Exercícios ou recursos que você está trabalhando nesta sessão*")
+        pcloud_url = st.text_input("Link pCloud da sua sessão:", placeholder="https://u.pcloud.com/#/publink?code=SEU_CODIGO", key="pcloud_session")
+
+        st.markdown("### 📦 Repositório Permanente (Professor)")
+        st.markdown("*Materiais do professor (mantidos entre semestres)*")
+        pcloud_repo_url = st.text_input("Link pCloud Repositório:", key="pcloud_repo_url", placeholder="https://u.pcloud.com/#/publink?code=...")
+
+        st.markdown("### 📗 Documentos Adotados")
+        st.markdown("*PDFs de livros ou materiais oficialmente adotados*")
+        adopted_docs_url = st.text_input("Link pCloud Livros/Slides:", key="adopted_docs_url", placeholder="https://u.pcloud.com/#/publink?code=...")
 
         st.divider()
-        st.header("📦 Repositório Permanente")
-        pcloud_repo_url = st.text_input("Link pCloud Repositório (Professor):", key="pcloud_repo_url", placeholder="https://u.pcloud.com/#/publink?code=...")
-        st.caption("Link fixo da pasta com todos os PDFs do professor. O sistema busca materiais relevantes automaticamente.")
+        st.markdown("## 🔍 Processamento")
 
-        st.divider()
-        st.header("📗 Documentos Adotados")
-        adopted_docs_url = st.text_input("Link pCloud Documentos Adotados:", key="adopted_docs_url", placeholder="https://u.pcloud.com/#/publink?code=...")
-        st.caption("Livros e materiais adotados na disciplina. Pode ser pCloud ou URL direta de PDF.")
-
-        st.divider()
-        st.header("🌐 Busca Web Inteligente")
-        web_search_enabled = st.checkbox("Habilitar busca em portais .edu.br e arXiv", value=True, key="web_search_toggle")
-        st.caption("⚠️ A busca web pode adicionar 10-15 segundos ao tempo de análise. Desabilite se desejar respostas mais rápidas.")
+        st.markdown("### 🌐 Busca Web Inteligente")
+        web_search_enabled = st.checkbox("Consultar portais acadêmicos + arXiv", value=True, key="web_search_toggle", help="Adiciona ~10-15 segundos, conecta dúvida a pesquisa real")
 
     # --- ENTRADA DO ALUNO ---
     enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: Explique a conservação de energia em um sistema...")
