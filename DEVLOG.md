@@ -59,6 +59,48 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Light Cream Theme + UX Polish (sidebar, confirm, source card)
+
+**Commit:** `624dc99`
+
+### O que foi feito
+- ✅ **Tema Claro Warm Cream (Claude/Manus.im inspired)**:
+  - Paleta completa via CSS vars: `--bg-main: #faf9f7`, `--bg-sidebar: #f3f2ef`, `--text-1: #1c1917`, `--border: #e7e5e0`
+  - `.glass` e `.glass-sm` atualizados para frosted white/70
+  - Inputs, botões, scrollbar todos em tones de stone/warm
+  - Removido dark mode completamente (`darkMode` removido do tailwind.config.js)
+  - Anti-flash script removido de layout.tsx (não mais necessário)
+
+- ✅ **Cards de quick actions removidos** da welcome page:
+  - Welcome agora é um hero limpo e centrado com tagline
+
+- ✅ **Sidebar toggle: « / »** ao invés de X/Menu:
+  - Monospace font-bold, mais elegante e intuitivo
+
+- ✅ **Confirmação antes de enviar**:
+  - `requestSend()` → mostra overlay de confirmação
+  - Preview da pergunta (line-clamp-3)
+  - Botões pill: ✓ Enviar / ← Editar
+  - Triggering por Enter ou clique no Send
+
+- ✅ **Loading Card — Hierarquia de Fontes**:
+  - Card com 5 fontes: Notas de Aula → Documentos → Ementa → Portais → IA
+  - Animação cíclica: fonte ativa destaca em indigo-50 com "Buscando…"
+  - Footer mostra sequência de prioridade
+  - `activeSource` state cicla a cada 900ms enquanto loading
+
+### Arquivos Modificados
+- `frontend/app/globals.css` — paleta completa reescrita
+- `frontend/app/layout.tsx` — removido anti-flash script
+- `frontend/tailwind.config.js` — removido darkMode: 'class'
+- `frontend/components/ChatInterface.tsx` — reescrita completa (light theme + 4 melhorias)
+- `frontend/components/AgentPanel.tsx` — reescrita completa para light theme
+
+### Status
+🟢 **COMPLETO** — Build sem erros, TypeScript OK, pushed ao GitHub
+
+---
+
 ## 📅 2026-04-27 — Broken Link Reporting System
 
 **Commits:** `072d8ac`
