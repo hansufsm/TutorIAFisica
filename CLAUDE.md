@@ -256,3 +256,66 @@ When the Evaluator generates a quiz challenge:
 - On incorrect answer: identify the specific misconception, give a targeted hint, ask again
 - Never reveal the answer in fewer than 2 failed attempts — maintain Socratic pressure
 - Store challenge and student response in `PhysicsState.formative_challenge` for session continuity
+
+---
+
+## Development Log (DEVLOG)
+
+To prevent losing context about what was done and when, this project maintains a dual devlog system:
+
+### 📄 DEVLOG.md (Public, Versionized)
+Located at `/home/hans/devworkspace/TutorIAFisica/DEVLOG.md`
+
+**When to update:**
+- After completing a major feature or phase
+- When a significant milestone is reached
+- Before committing related work
+
+**Format:**
+```markdown
+## 📅 YYYY-MM-DD — Feature Name
+
+**Commits:** `abc1234` + `def5678`
+
+### O que foi feito
+- ✅ Implementation detail 1
+- ✅ Implementation detail 2
+
+### Decisões/Desvios
+- Note any departures from original plan
+
+### Status
+🟢 COMPLETO | 🟡 PARCIAL | ⏳ PENDENTE
+
+### Próximo Passo
+What's next logically
+```
+
+### 📌 Memory devlog_summary.md (Auto-Loaded)
+Located at `/home/hans/.claude/projects/.../memory/devlog_summary.md`
+
+**What it contains:**
+- Executive summary of latest work session
+- Current status and phase
+- List of completed phases
+- Next high-priority items
+- Links to critical reference files
+
+**Auto-loaded each session** — you see it in system context without reading.
+
+### Usage Pattern
+
+1. **During work:** Track in-progress status in your thinking
+2. **End of session:** 
+   - I will ask: "Quer registrar essa sessão no DEVLOG?"
+   - Provide a summary with commit refs
+   - Answer any follow-up questions about references
+3. **Between sessions:** 
+   - I load `devlog_summary.md` from memory
+   - You resume context immediately
+   - No need to re-read project status
+
+### Why Dual System?
+
+- **DEVLOG.md** = Full public history, discoverable via `git log`, shareable with team
+- **devlog_summary.md** = Compressed context loaded into each session, prevents "cold start"
