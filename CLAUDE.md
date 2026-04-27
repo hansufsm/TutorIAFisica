@@ -57,6 +57,22 @@ The system follows a **Pipeline + State Pattern** where:
 - If user provides an image to a text-only model, a warning is logged but processing continues without the image
 - Images are encoded as base64 JPEG in the message structure for multimodal models
 
+### Modo Referência — Offline Knowledge Base (v4.3+)
+
+**Feature:** Students can access UFSM syllabus + teacher notes **without API keys**.
+
+- **Toggle:** Sidebar "🔬 Modo de Resposta" with "Modo IA" and "Modo Referência" options
+- **No API calls:** `generate_reference_response()` in `app.py` (lines 105-188) fills PhysicsState with local materials only
+- **Keyword extraction:** Regex `\b\w{4,}\b` extracts 4+ char words from question
+- **UFSM search:** Reuses `PhysicsState._check_ufsm_syllabus()` for substring matching against discipline temas
+- **Character limits:** All response fields truncated to 1500 chars to prevent UI overload
+- **StudentModel isolation:** Modo Referência does NOT increment session count (not an "AI session")
+- **Conditional branch:** Button logic (line 393-445) routes to `generate_reference_response()` or `orchestrator.run()` based on toggle
+
+**User docs:** `docs/MODO_REFERENCIA.md`
+**Developer docs:** `docs/DEVELOPER_MODO_REFERENCIA.md`
+**Memory:** `/home/hans/.claude/projects/.../memory/feature_modo_referencia.md`
+
 ## Running the Application
 
 ```bash
