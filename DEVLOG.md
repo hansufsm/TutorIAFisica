@@ -4,6 +4,47 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Frontend UX Polish: Sidebar Toggle + Error Handling
+
+**Commit:** `2f1a00e`
+
+### O que foi feito
+- ✅ **Sidebar toggle repositioned**: Movido para o topo (logo area) com visibilidade permanente
+  - Antes: botão na base ocupava espaço vertical
+  - Depois: integrado no header logo, sempre acessível
+  - Melhora discoverabilidade e economia de espaço
+- ✅ **Error message sanitization** (`lib/api.ts`):
+  - Criada função `sanitizeError()` que remove stack traces, HTML, e detalhes técnicos
+  - Extraí apenas primeira linha do erro (evita poluição)
+  - Mensagens customizadas para erros comuns: 429, 401, 500, DeepSeek, Gemini
+  - Fallback genérico para erros muito longos (>150 chars)
+- ✅ **Error display refactored** (`ChatInterface.tsx`):
+  - Antes: erro ocupava o fluxo principal da conversa (mb-6, p-4 em linha)
+  - Depois: **floating toast** fixed bottom-left com animation, close button
+  - Reduz visual noise, não atrapalha leitura de respostas
+  - Melhor UX com opção de dismiss manual (botão X)
+
+### Decisões
+- Erro em toast fixo vs. inline: preferido toast porque erros de API são exceção, não regra
+- Sanitização agressiva: remover >150 chars vs. quebra-linha-ificada porque tokens de erro variam muito
+- Mensagens customizadas por provider para maior clareza ao usuário
+- Mantem estado `setError(null)` para permitir dismiss manual
+
+### Por que foi necessário
+- Usuário relató que mensagens de erro preenchiam tela inteira (respostas do API verbosas)
+- Sidebar toggle na base era pouco intuitivo (usuário pediu toggle "na parte superior")
+- Sem tratamento, fallback de modelo gerava ruído e confusão visual
+
+### Status
+🟢 **COMPLETO** — UX refinado, erros tratados graciosamente, sidebar toggle intuitivo
+
+### Próximas Prioridades
+1. Teste com erro real de API (rate limit, falha de autenticação)
+2. Verificar animação slide-in-up em mobile
+3. Ajustar posicionamento do toast em telas pequenas se necessário
+
+---
+
 ## 📅 2026-04-27 — Complete UI Redesign with Dark Theme + Tailwind CSS
 
 **Commit:** `efea2e2`
