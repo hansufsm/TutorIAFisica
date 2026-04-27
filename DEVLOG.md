@@ -4,6 +4,38 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Vercel Build Fix + CLAUDE.md Full-Stack Documentation
+
+**Commits:** `b425adc` (vercel.json fix) + `40858ed` (CLAUDE.md expansion)
+
+### O que foi feito
+- ✅ **Diagnosticado** erro de build Vercel: Next.js não encontrado no root, frontend em `frontend/`
+- ✅ **Criado** `vercel.json` no root com caminhos explícitos:
+  - `buildCommand`: `cd frontend && npm run build`
+  - `outputDirectory`: `frontend/.next`
+  - `installCommand`: `cd frontend && npm install`
+- ✅ **Expandido** `CLAUDE.md` de 322 para 634 linhas com:
+  - Full-stack architecture diagram (Frontend → Backend → Agent Pipeline)
+  - Directory structure com propósito de cada pasta
+  - **Development Commands** (backend, frontend, Streamlit, testes)
+  - **Environment Setup** (.env variables e contextos)
+  - **Database & StudentModel** (Supabase schema, SM-2 algorithm, API)
+  - **Deployment** (Cloudflare Workers, Render.com, cron jobs)
+  - Updated invariants com SSE, CORS, Supabase constraints
+
+### Decisões
+- Root `vercel.json` em vez de configuração no UI (mais rastreável via git)
+- Mantidas conventions pedagógicas e padrão de devlog intactos
+- Frontend path em `CLAUDE.md` agora claro: `frontend/` package.json + vercel.json
+
+### Status
+🟢 **COMPLETO** — Vercel build desbloqueado. CLAUDE.md agora documentação completa de full-stack.
+
+### Próximo Passo
+Testar build Vercel novamente. Possível deploy para confirmar endpoint frontend.
+
+---
+
 ## 📅 2026-04-27 — Etapa 4 Frontend Components Complete
 
 **Commits:** `f72bcc3` (PROJECT_STATUS.md) + `d882410` (frontend components)
@@ -120,6 +152,22 @@ Cron-job.org falhou com 401/400 (problemas de autenticação). Vercel tem cron j
 
 ### Status
 🟡 **CÓDIGO PRONTO** — Frontend migrado, aguardando deploy manual no Vercel
+
+---
+
+## 📅 2026-04-27 — Vercel Migration Complete (Docs & Verification)
+
+**Commits:** `996d104` + `b77fb50`
+
+### O que foi feito
+- ✅ Criado `docs/DEPLOY_VERCEL.md` — guia completo de 9 seções (migração, env vars, deploy, cron, rollback, checklist, troubleshooting)
+- ✅ Verificado `render.yaml` — FRONTEND_URL com placeholder `YOUR_VERCEL_DOMAIN.vercel.app` + comentários explicativos
+- ✅ Confirmado `frontend/.env.local` — contém SUPABASE_URL + SUPABASE_ANON_KEY
+- ✅ Build Next.js validado — `npm run build` ✓ (sem warnings Cloudflare, 1058ms)
+- ✅ Dois commits criados e pushed
+
+### Status
+🟢 **CÓDIGO + DOCS PRONTOS** — Frontend migrado de Cloudflare para Vercel, docs operacionais completas
 
 ---
 
