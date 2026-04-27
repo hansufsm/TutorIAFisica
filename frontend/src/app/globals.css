@@ -1,30 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #3b82f6;
+  --color-primary-dark: #1e40af;
+  --color-primary-light: #60a5fa;
+  --color-accent: #8b5cf6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --color-agent-interpreter: #3b82f6;
+  --color-agent-solver: #10b981;
+  --color-agent-visualizer: #f97316;
+  --color-agent-curator: #8b5cf6;
+  --color-agent-evaluator: #ef4444;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  @apply antialiased;
 }
 
-html, body {
+html, body, #__next {
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
 }
 
+/* Scrollbar customizado */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: rgba(148, 163, 184, 0.1);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #444;
+  background: rgba(59, 130, 246, 0.4);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #666;
+  background: rgba(59, 130, 246, 0.6);
+}
+
+/* Glassmorphism base */
+.glass {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* Agent badges */
+.agent-badge {
+  @apply inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold transition-all;
+}
+
+.agent-badge-interpreter {
+  @apply bg-blue-500/20 text-blue-300 border border-blue-500/30;
+}
+
+.agent-badge-solver {
+  @apply bg-emerald-500/20 text-emerald-300 border border-emerald-500/30;
+}
+
+.agent-badge-visualizer {
+  @apply bg-orange-500/20 text-orange-300 border border-orange-500/30;
+}
+
+.agent-badge-curator {
+  @apply bg-violet-500/20 text-violet-300 border border-violet-500/30;
+}
+
+.agent-badge-evaluator {
+  @apply bg-red-500/20 text-red-300 border border-red-500/30;
+}
+
+/* Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Input focus state */
+input:focus,
+textarea:focus,
+select:focus {
+  @apply ring-2 ring-blue-500/30;
+}
+
+/* Button base styles */
+.btn-primary {
+  @apply px-4 py-2.5 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg hover:shadow-xl hover:shadow-blue-500/20;
+}
+
+.btn-secondary {
+  @apply px-4 py-2.5 rounded-lg font-medium transition-all duration-200 bg-slate-700 hover:bg-slate-600 border border-slate-600;
 }

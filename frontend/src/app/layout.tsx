@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const font = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"] });
+const mono = JetBrains_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "TutorIA Física — UFSM",
@@ -16,7 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={`${font.className} bg-gray-950 text-white antialiased`}>
+      <body className={`${inter.className} bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white antialiased overflow-hidden`}>
+        <style>{`:root {
+          --font-mono: ${mono.style.fontFamily};
+        }`}</style>
         {children}
       </body>
     </html>
