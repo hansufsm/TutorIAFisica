@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Geist } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
-const mono = JetBrains_Mono({ subsets: ["latin"] });
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 
 export const metadata: Metadata = {
   title: "TutorIA Física — UFSM",
@@ -17,10 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.className} bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white antialiased overflow-hidden`}>
-        <style>{`:root {
-          --font-mono: ${mono.style.fontFamily};
-        }`}</style>
+      <body className={`${jakarta.variable} ${geist.variable} font-geist bg-white text-slate-900 antialiased`}>
         {children}
       </body>
     </html>
