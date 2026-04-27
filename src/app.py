@@ -53,10 +53,11 @@ st.markdown("""
 
     /* Usando classes diretas para os agentes de forma mais previsível se possível. */
     /* Este é um fallback, caso a estrutura interna do Streamlit mude */
-    .agent-solucionador { border-left: 8px solid #28a745; background-color: #e9f7ec; } /* Verde */
-    .agent-visualizador { border-left: 8px solid #fd7e14; background-color: #fff9e9; } /* Laranja */
-    .agent-curador { border-left: 8px solid #6f42c1; background-color: #f3f0f9; } /* Roxo */
-    .agent-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; } /* Vermelho */
+    .agent-solucionador, .border-solucionador { border-left: 8px solid #28a745; background-color: #e9f7ec; } /* Verde */
+    .agent-visualizador, .border-visualizador { border-left: 8px solid #fd7e14; background-color: #fff9e9; } /* Laranja */
+    .agent-curador, .border-curador { border-left: 8px solid #6f42c1; background-color: #f3f0f9; } /* Roxo */
+    .agent-avaliador, .border-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; } /* Vermelho */
+    .border-interprete { border-left: 8px solid #007bff; background-color: #e6f0ff; } /* Azul */
 
     /* Scrollbar personalizada */
     ::-webkit-scrollbar { width: 8px; }
@@ -157,7 +158,7 @@ def main():
 
         st.divider()
         st.header("☁️ Material pCloud do Aluno")
-        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.com/#/publink?code=YwnXZ5JRkIVuJIKjhmWtlGzorl0jp6UeX")
+        pcloud_url = st.text_input("Link Público pCloud (Pasta):", placeholder="https://u.pcloud.com/#/publink?code=SEU_CODIGO")
         st.caption("Link único por sessão — PDFs que o aluno envia para esta dúvida.")
 
         st.divider()
@@ -190,15 +191,7 @@ def main():
                      if runtime_key_input:
                          runtime_keys[key_name] = runtime_key_input
 
-            # Debug: Log input materials
-            with st.status("🔍 Verificando materiais de entrada...", expanded=False) as debug_status:
-                st.write(f"📝 Enunciado: {len(enunciado)} caracteres")
-                st.write(f"📄 Notas do professor: {len(manual_notes)} caracteres")
-                st.write(f"📦 Repositório: {'✓' if pcloud_repo_url else '✗'}")
-                st.write(f"📗 Documentos adotados: {'✓' if adopted_docs_url else '✗'}")
-                st.write(f"☁️ Material do aluno: {'✓' if pcloud_url else '✗'}")
-                st.write(f"🌐 Busca web: {'Habilitada' if web_search_enabled else 'Desabilitada'}")
-                st.write(f"📷 Imagem: {'✓' if input_image else '✗'}")
+            # Debug: Validate input materials (internal only, not displayed to user)
             
             # Instancia o Orchestrator com o modelo selecionado pelo usuário e chaves runtime
             orchestrator = PhysicsOrchestrator(
@@ -322,43 +315,46 @@ def main():
         if st.session_state.quiz_visible:
             st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
             st.markdown(f"**Desafio do Avaliador:**{st.session_state.quiz_question}")
-            
+
             resposta_aluno = st.text_input("Sua resposta:", key="student_answer_input")
-            
+
             if st.button("Enviar Resposta"):
                 if resposta_aluno:
                     # Instancia o avaliador para obter o feedback
                     # Usa o modelo que respondeu à consulta principal ou o fallback
                     model_for_eval_display = res.used_model_display_name if res.used_model_display_name else st.session_state.selected_model_display_name
                     evaluator_model_id = Config.get_model_id(model_for_eval_display)
-                    
+
                     evaluator = TutorIAAgent("Avaliador", "Você é o 'Avaliador Pedagógico'. Dê feedback socrático.")
-                    
+
                     with st.spinner("Avaliador analisando..."):
                         # Chama o método de avaliação
                         feedback = evaluator.ask(
-                            prompt=resposta_aluno, 
+                            prompt=resposta_aluno,
                             context=st.session_state.quiz_question, # Contexto é a própria pergunta para avaliação
                             model_id=evaluator_model_id # Usa o modelo que está ativo/foi usado
                         )
-                    
+
                     st.session_state.quiz_feedback = feedback
                     st.session_state.quiz_answer_submitted = True # Marca que uma resposta foi enviada
                     st.session_state.quiz_visible = False # Esconde campos de resposta após enviar
+                    st.rerun() # Reexecuta a página para exibir o feedback fora do bloco quiz_visible
                 else:
                     st.warning("Por favor, digite uma resposta para o desafio.")
-            
-            # Exibe o feedback se houver
-            if st.session_state.quiz_feedback:
-                st.info(f"🗨️ **Feedback:**{st.session_state.quiz_feedback}")
-                # Botão para pedir um novo desafio (resetando o estado do quiz)
-                if st.button("Pedir Novo Desafio"):
-                    st.session_state.quiz_generated = False
-                    st.session_state.quiz_question = ""
-                    st.session_state.quiz_feedback = ""
-                    st.session_state.last_result = None # Limpa resultados anteriores para recarregar
-                    st.rerun() 
-            
+
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Exibe o feedback fora do bloco quiz_visible — sempre aparece após enviar
+        if st.session_state.get("quiz_feedback"):
+            st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
+            st.info(f"🗨️ **Feedback:**{st.session_state.quiz_feedback}")
+            # Botão para pedir um novo desafio (resetando o estado do quiz)
+            if st.button("Pedir Novo Desafio"):
+                st.session_state.quiz_generated = False
+                st.session_state.quiz_question = ""
+                st.session_state.quiz_feedback = ""
+                st.session_state.last_result = None # Limpa resultados anteriores para recarregar
+                st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
