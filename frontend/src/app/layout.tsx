@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <body className={`${jakarta.variable} ${geist.variable} font-geist bg-white text-slate-900 antialiased`}>
+    <html lang="pt-BR" className={`${jakarta.variable} ${geist.variable}`}>
+      <body className="font-geist bg-white text-slate-900 antialiased">
         {children}
       </body>
     </html>
