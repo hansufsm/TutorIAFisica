@@ -62,6 +62,12 @@ st.markdown("""
     .agent-avaliador, .border-avaliador { border-left: 8px solid #dc3545; background-color: #fff5f5; } /* Vermelho */
     .border-interprete { border-left: 8px solid #007bff; background-color: #e6f0ff; } /* Azul */
 
+    /* Container para conteúdo dos agentes */
+    .agent-box { padding: 1rem; border-radius: 8px; margin: 0.5rem 0; }
+
+    /* Badge de disciplina UFSM */
+    .ufsm-badge { background-color: #f0f4f8; border-left: 4px solid #7c3aed; padding: 0.75rem; margin: 1rem 0; border-radius: 4px; font-weight: 600; }
+
     /* Scrollbar personalizada — light theme colors */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #ffffff; }
@@ -187,6 +193,25 @@ def generate_reference_response(
 
     return state
 
+def is_error_string(content: str) -> bool:
+    """Check if content is an error message from failed LLM calls."""
+    return isinstance(content, str) and content.strip().startswith("Erro:")
+
+def display_content_or_error(content: str, content_type: str = "markdown"):
+    """Display content or show error warning if it's an error string."""
+    if not content:
+        st.info("*(Sem resposta)*")
+        return
+    if is_error_string(content):
+        st.warning(f"❌ Falha ao processar: {content}")
+        return
+    if content_type == "markdown":
+        st.markdown(content, unsafe_allow_html=True)
+    elif content_type == "math":
+        st.markdown(content, unsafe_allow_html=True)
+    elif content_type == "code":
+        st.code(content, language="python")
+
 def display_math_content(content: str):
     """Exibe conteúdo com suporte melhorado a LaTeX/KaTeX."""
     if not content:
@@ -261,10 +286,10 @@ def main():
         current_selection_in_state = st.session_state.selected_model_display_name
         if current_selection_in_state != selected_model_display_name:
             st.session_state.selected_model_display_name = selected_model_display_name
+            st.toast(f"✅ Modelo atualizado para: **{selected_model_display_name}**")
             st.rerun() # Reinicia a página para aplicar a mudança (ex: desabilitar upload de imagem)
 
         # Gerenciamento de Chaves API
-        runtime_keys = {}
         keys_to_prompt_names = []
 
         # Identifica quais chaves API são necessárias com base na ordem de preferência
@@ -285,7 +310,6 @@ def main():
                 for key_name_to_get in keys_to_prompt_names:
                     user_key = st.text_input(f"Cole sua chave {key_name_to_get}:", type="password", key=f"runtime_key_{key_name_to_get}")
                     if user_key:
-                        runtime_keys[key_name_to_get] = user_key
                         st.success(f"Chave '{key_name_to_get}' inserida para esta sessão.")
 
         model_is_multimodal = Config.is_model_multimodal(st.session_state.selected_model_display_name)
@@ -393,7 +417,7 @@ def main():
 
                     # Verifica se o modelo selecionado requer chave e ela está ausente
                     needs_key = Config.get_provider_key_name(st.session_state.selected_model_display_name)
-                    if needs_key and not os.getenv(Config.get_provider_key_name(st.session_state.selected_model_display_name)) and not runtime_keys.get(Config.get_provider_key_name(st.session_state.selected_model_display_name)):
+                    if needs_key and not os.getenv(needs_key) and not runtime_keys.get(needs_key):
                          st.warning(f"Chave API para o modelo selecionado '{st.session_state.selected_model_display_name}' não encontrada. O sistema tentará modelos alternativos.")
 
                     res = orchestrator.run(
@@ -479,15 +503,26 @@ def main():
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧩 Diálogo Socrático", "📐 Solução Matemática", "🖼️ Visualização", "📚 Contexto UFSM", "📊 Meu Progresso"])
 
         with tab1:
-            st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True); st.write(res.pergunta_socratica); st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True)
+            display_content_or_error(res.pergunta_socratica, "markdown")
+            st.markdown('</div>', unsafe_allow_html=True)
         with tab2:
             st.markdown('<div class="agent-box border-solucionador">', unsafe_allow_html=True)
-            display_math_content(res.solution_steps)
+            display_content_or_error(res.solution_steps, "math")
             st.markdown('</div>', unsafe_allow_html=True)
         with tab3:
-            st.markdown('<div class="agent-box border-visualizador">', unsafe_allow_html=True); st.code(res.code_snippet, language="python"); st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-visualizador">', unsafe_allow_html=True)
+            if res.used_model_display_name is None:
+                # Modo Referência: code_snippet é markdown, não código Python
+                display_content_or_error(res.code_snippet, "markdown")
+            else:
+                # Modo IA: code_snippet é código Python
+                display_content_or_error(res.code_snippet, "code")
+            st.markdown('</div>', unsafe_allow_html=True)
         with tab4:
-            st.markdown('<div class="agent-box border-curador">', unsafe_allow_html=True); st.markdown(res.mapa_mental_markdown); st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="agent-box border-curador">', unsafe_allow_html=True)
+            display_content_or_error(res.mapa_mental_markdown, "markdown")
+            st.markdown('</div>', unsafe_allow_html=True)
 
         with tab5:
             sm = st.session_state.get("student_model")
@@ -532,13 +567,13 @@ def main():
         
         # Controle de estado do quiz
         if 'quiz_visible' not in st.session_state: st.session_state.quiz_visible = False
-        if 'quiz_generated' not in st.session_state: st.session_state.quiz_generated = False
         if 'quiz_question' not in st.session_state: st.session_state.quiz_question = ""
         if 'quiz_feedback' not in st.session_state: st.session_state.quiz_feedback = ""
         
-        # Botão para ativar o desafio
-        if st.button("Desafie-me! Quero testar meu conhecimento"):
-            st.session_state.quiz_visible = True
+        # Botão para ativar o desafio (não disponível em Modo Referência)
+        if res.used_model_display_name is not None:  # Modo IA only
+            if st.button("Desafie-me! Quero testar meu conhecimento"):
+                st.session_state.quiz_visible = True
             st.session_state.quiz_question = res.quiz_question # Armazena a pergunta gerada
             st.session_state.quiz_feedback = "" # Limpa feedback anterior
             st.session_state.quiz_answer_submitted = False # Reinicia o estado de submissão
@@ -547,7 +582,7 @@ def main():
         # Exibe os campos do quiz se estiverem visíveis
         if st.session_state.quiz_visible:
             st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
-            st.markdown(f"**Desafio do Avaliador:**{st.session_state.quiz_question}")
+            st.markdown(f"**Desafio do Avaliador:**\n\n{st.session_state.quiz_question}")
 
             resposta_aluno = st.text_input("Sua resposta:", key="student_answer_input")
 
@@ -593,7 +628,7 @@ def main():
         # Exibe o feedback fora do bloco quiz_visible — sempre aparece após enviar
         if st.session_state.get("quiz_feedback"):
             st.markdown('<div class="agent-box border-avaliador">', unsafe_allow_html=True)
-            st.info(f"🗨️ **Feedback:**{st.session_state.quiz_feedback}")
+            st.info(f"🗨️ **Feedback:**\n\n{st.session_state.quiz_feedback}")
             # Botão para pedir um novo desafio (resetando o estado do quiz)
             if st.button("Pedir Novo Desafio"):
                 st.session_state.quiz_generated = False

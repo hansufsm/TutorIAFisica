@@ -42,8 +42,6 @@ class PhysicsState:
 
         # Campos de Avaliação Formativa
         self.quiz_question: str = ""
-        self.quiz_answer_submitted: bool = False
-        self.quiz_feedback: str = ""
 
         # Informações de fallback e modelo utilizado
         self.used_model_display_name: Optional[str] = None
@@ -324,7 +322,7 @@ class PhysicsOrchestrator:
 
         # Intérprete
         if on_progress: on_progress("🧩 Intérprete: analisando o problema...")
-        context = state.build_context() if state.build_context() else ""
+        context = state.build_context() or ""
         response, model_name_used_int, fb_int = self._attempt_model_call("interpreter", input_data, context, image)
         state.pergunta_socratica = response
         if "," in response:
@@ -345,7 +343,7 @@ class PhysicsOrchestrator:
             state.sync_web_sources(on_progress=on_progress)
 
         # Atualizar contexto após identificar disciplina UFSM e buscar web sources
-        context = state.build_context() if state.build_context() else ""
+        context = state.build_context() or ""
         if on_progress and context:
             on_progress(f"✅ Contexto montado: {len(context)} caracteres com {context.count('[') // 2} fontes")
 
@@ -416,7 +414,7 @@ class PhysicsOrchestrator:
         state.sync_external_data()
 
         # Intérprete
-        context = state.build_context() if state.build_context() else ""
+        context = state.build_context() or ""
         response, model_name_used, fb = self._attempt_model_call("interpreter", input_data, context, state.image_input)
         state.pergunta_socratica = response
         if "," in response:
@@ -430,7 +428,7 @@ class PhysicsOrchestrator:
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Solucionador
-        context = state.build_context() if state.build_context() else ""
+        context = state.build_context() or ""
         response, model_name_used, fb = self._attempt_model_call("solver", input_data, context, state.image_input)
         state.solution_steps = response
         if fb: state.fallback_occurred = True
@@ -484,7 +482,7 @@ class PhysicsOrchestrator:
         state.sync_external_data()
 
         # Intérprete
-        context = state.build_context() if state.build_context() else ""
+        context = state.build_context() or ""
         response, model_name_used, fb = self._attempt_model_call("interpreter", input_data, context, state.image_input)
         state.pergunta_socratica = response
         if "," in response:
@@ -498,7 +496,7 @@ class PhysicsOrchestrator:
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
         # Solucionador
-        context = state.build_context() if state.build_context() else ""
+        context = state.build_context() or ""
         response, model_name_used, fb = self._attempt_model_call("solver", input_data, context, state.image_input)
         state.solution_steps = response
         if fb: state.fallback_occurred = True
