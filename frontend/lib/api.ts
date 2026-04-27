@@ -1,5 +1,23 @@
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+function sanitizeError(error: string): string {
+  // Remove verbose stack traces, HTML, and technical details
+  let msg = error
+    .replace(/<[^>]*>/g, "") // Remove HTML tags
+    .split("\n")[0] // Get first line only
+    .trim();
+
+  // Extract meaningful error from common patterns
+  if (msg.includes("429") || msg.includes("rate")) return "Limite de requisições atingido. Tente novamente em alguns segundos.";
+  if (msg.includes("401") || msg.includes("authentication")) return "Falha de autenticação na API.";
+  if (msg.includes("500")) return "Erro do servidor. Tente novamente.";
+  if (msg.includes("DeepSeek") || msg.includes("deepseek")) return "Erro ao conectar com DeepSeek. Usando fallback...";
+  if (msg.includes("Gemini") || msg.includes("gemini")) return "Erro ao conectar com Gemini. Tente outro modelo.";
+
+  // Return message if it's reasonable length, otherwise generic message
+  return msg.length > 150 ? "Erro ao processar sua pergunta. Tente novamente." : msg;
+}
+
 export interface AgentOutput {
   agent_name: string;
   color: string;
@@ -42,7 +60,8 @@ export async function askTutorStream(
     body: JSON.stringify(req),
   });
   if (!res.ok) {
-    onError(await res.text());
+    const errorText = await res.text();
+    onError(sanitizeError(errorText));
     return;
   }
 
@@ -61,7 +80,7 @@ export async function askTutorStream(
           break;
         }
         if (data.error) {
-          onError(data.error);
+          onError(sanitizeError(data.error));
           break;
         }
         onAgent(data as AgentOutput);

@@ -79,17 +79,24 @@ export function ChatInterface() {
           sidebarOpen ? "w-64" : "w-20"
         } transition-all duration-300 border-r border-slate-700/50 glass flex flex-col p-4 overflow-y-auto`}
       >
-        {/* Logo */}
+        {/* Logo + Toggle */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center flex-shrink-0">
             <span className="text-white font-bold">⚛️</span>
           </div>
           {sidebarOpen && (
-            <div>
+            <div className="flex-1">
               <h1 className="font-bold text-slate-50">TutorIA</h1>
               <p className="text-xs text-slate-400">Física</p>
             </div>
           )}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-lg text-slate-400 hover:bg-slate-800/30 transition flex-shrink-0"
+            title={sidebarOpen ? "Fechar" : "Abrir"}
+          >
+            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
 
         {/* Nav Items */}
@@ -128,15 +135,6 @@ export function ChatInterface() {
             {sidebarOpen && <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />}
           </div>
         </div>
-
-        {/* Toggle Button */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="mt-4 w-full p-2 rounded-lg text-slate-400 hover:bg-slate-800/30 transition"
-          title={sidebarOpen ? "Fechar" : "Abrir"}
-        >
-          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
-        </button>
       </aside>
 
       {/* Main Content */}
@@ -227,8 +225,21 @@ export function ChatInterface() {
 
               {/* Error */}
               {error && (
-                <div className="mb-6 p-4 rounded-lg bg-red-950/30 border border-red-500/20 text-red-300 text-sm">
-                  <span className="font-medium">⚠️ Erro:</span> {error}
+                <div className="fixed bottom-20 left-1/2 -translate-x-1/2 max-w-md z-50 animate-slide-in-up">
+                  <div className="p-3 rounded-lg bg-red-950/80 border border-red-500/30 text-red-200 text-sm flex items-start gap-3 shadow-lg backdrop-blur">
+                    <span className="text-lg flex-shrink-0">⚠️</span>
+                    <div className="flex-1">
+                      <p className="font-medium text-red-100">Erro</p>
+                      <p className="text-red-300 text-xs mt-1">{error}</p>
+                    </div>
+                    <button
+                      onClick={() => setError(null)}
+                      className="flex-shrink-0 text-red-400 hover:text-red-300 transition"
+                      title="Fechar"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
 
