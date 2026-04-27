@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  outputFileTracingRoot: './frontend',
+  output: 'standalone',
+  outputFileTracingRoot: '/home/hans/devworkspace/TutorIAFisica/frontend',
 }
 
 module.exports = nextConfig
