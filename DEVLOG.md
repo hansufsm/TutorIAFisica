@@ -4,6 +4,38 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Frontend + Backend LIVE + Complete Deployment Docs
+
+**Commits:** `9cb0867` (vercel.json) + `2fdf972` (DEPLOY_COMPLETE.md)
+
+### O que foi feito
+- ✅ **Frontend deployed** to https://tutoriafisica.vercel.app
+  - Fixed Vercel monorepo build with root `vercel.json` using `cd frontend &&` pattern
+  - Next.js 15 build passing, page loads correctly
+  - ChatInterface component rendering, model selector active
+- ✅ **Backend verified** at https://tutor-ia-fisica-api.onrender.com
+  - FastAPI running with Swagger UI accessible
+  - Health endpoint working, CORS middleware in place
+  - Ready for frontend requests
+- ✅ **Created** `docs/DEPLOY_COMPLETE.md` — comprehensive integration guide
+  - Live URLs and status
+  - Vercel + Render.com configuration explained
+  - Environment variable setup instructions
+  - Testing checklist (6 items)
+  - Troubleshooting guide for CORS, free tier sleep, API keys
+  - Rollback and maintenance procedures
+
+### Próximos Passos Críticos
+1. **Set NEXT_PUBLIC_API_URL** in Vercel dashboard (frontend → backend connection)
+2. **Verify API keys** in Render.com environment (all providers)
+3. **Test integration** — send question from frontend, verify SSE streaming
+4. **Monitor first requests** — watch Render logs for any errors
+
+### Status
+🟡 **PARCIAL** — Frontend + Backend live, docs complete. Awaiting env var config and integration testing.
+
+---
+
 ## 📅 2026-04-27 — Vercel Build Fix + CLAUDE.md Full-Stack Documentation
 
 **Commits:** `b425adc` (vercel.json fix) + `40858ed` (CLAUDE.md expansion)
