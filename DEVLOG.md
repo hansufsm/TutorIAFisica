@@ -86,13 +86,30 @@ Testar dev server (`npm run dev`) e verificar conexão real com backend `/tutor/
 
 ---
 
+## 📅 2026-04-27 — Frontend Testing + Deployment Setup
+
+**Commit:** `38c6eab` (Cloudflare config fix + cron job guide)
+
+### O que foi feito
+- ✅ Testado dev server (`npm run dev`) — ChatInterface, voice input, model selector funcionando
+- ✅ Build Cloudflare Workers — `npm run build:cloudflare` passa sem erros
+- ✅ Corrigido `next.config.js` — adicionado `output: 'standalone'` para OpenNext/Cloudflare
+- ✅ Criado `SUPABASE_CRON_SETUP.md` — guia passo-a-passo para cron job Supabase
+
+### Status
+🟡 **PARCIAL** — Frontend pronto, deployment requer:
+- CLOUDFLARE_API_TOKEN (manual, para `npx wrangler deploy`)
+- Configuração manual em cron-job.org (5 min, documentado)
+
+---
+
 ## 🎯 Próximas Prioridades
 
 | Item | Esforço | Impacto | Status |
 |---|---|---|---|
-| Testar frontend dev server | 10 min | Alto | ⏳ |
-| Cron job keep-alive Supabase | 5 min | Crítico | ⏳ |
-| Frontend deploy Cloudflare Workers | 20 min | Alto | ⏳ |
+| Deploy frontend (manual: obter Cloudflare token) | 5 min | Alto | ⏳ |
+| Configurar cron job Supabase | 5 min | 🔴 Crítico | ⏳ |
+| Testar SSE streaming em produção | 10 min | Alto | ⏳ |
 | Misconception detection | 1h | Médio | ⏳ |
 | StudentModel local ↔ Supabase unificação | 2h | Médio | ⏳ |
 
