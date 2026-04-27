@@ -1,9 +1,10 @@
 "use client";
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { AgentOutput } from "@/lib/api";
+import { AgentOutput, reportBrokenLink } from "@/lib/api";
 
 const AGENT_COLORS: Record<string, { icon: string; dotColor: string }> = {
   "Intérprete": { icon: "🔵", dotColor: "bg-indigo-500" },
@@ -16,13 +17,50 @@ const AGENT_COLORS: Record<string, { icon: string; dotColor: string }> = {
 export function AgentPanel({
   agent,
   streaming,
+  sessionId,
+  studentEmail,
 }: {
   agent: AgentOutput;
   streaming?: boolean;
+  sessionId?: string | null;
+  studentEmail?: string;
 }) {
+  const [showReport, setShowReport] = useState(false);
+  const [url, setUrl] = useState("");
+  const [note, setNote] = useState("");
+  const [sent, setSent] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+
   const config = AGENT_COLORS[agent.agent_name] || {
     icon: "⚙️",
     dotColor: "bg-slate-500",
+  };
+
+  const handleReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+
+    setReportLoading(true);
+    try {
+      await reportBrokenLink({
+        studentEmail: studentEmail || "aluno@ufsm.br",
+        sessionId,
+        agentName: agent.agent_name,
+        url,
+        note: note.trim() || undefined,
+      });
+      setSent(true);
+      setUrl("");
+      setNote("");
+      setTimeout(() => {
+        setSent(false);
+        setShowReport(false);
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to report link:", err);
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   return (
@@ -60,6 +98,58 @@ export function AgentPanel({
         >
           {agent.content}
         </ReactMarkdown>
+      </div>
+
+      {/* Report Broken Link */}
+      <div className="mt-4 pt-3 border-t border-slate-700/30 dark:border-slate-700/30">
+        {!showReport ? (
+          <button
+            onClick={() => setShowReport(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs text-slate-500 dark:text-slate-500 hover:text-slate-300 dark:hover:text-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 transition-all"
+          >
+            🔗 Reportar referência quebrada
+          </button>
+        ) : sent ? (
+          <p className="text-xs text-emerald-400 dark:text-emerald-400">✅ Reportado! Obrigado.</p>
+        ) : (
+          <form onSubmit={handleReportSubmit} className="space-y-2">
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Cole o link quebrado aqui"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800/50 dark:bg-slate-800/50 border border-slate-700/50 dark:border-slate-700/50 text-slate-50 dark:text-slate-50 placeholder-slate-500 dark:placeholder-slate-500 text-xs transition-all focus:outline-none focus:border-indigo-500/50 dark:focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-500/20"
+            />
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="O que aconteceu? (opcional)"
+              maxLength={200}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800/50 dark:bg-slate-800/50 border border-slate-700/50 dark:border-slate-700/50 text-slate-50 dark:text-slate-50 placeholder-slate-500 dark:placeholder-slate-500 text-xs resize-none transition-all focus:outline-none focus:border-indigo-500/50 dark:focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-500/20"
+              rows={2}
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={reportLoading || !url.trim()}
+                className="px-3 py-1 rounded-full bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium transition-all"
+              >
+                {reportLoading ? "Enviando..." : "Enviar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReport(false);
+                  setUrl("");
+                  setNote("");
+                }}
+                className="px-3 py-1 rounded-full bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-slate-300 dark:text-slate-300 text-xs font-medium transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

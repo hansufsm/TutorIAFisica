@@ -148,15 +148,35 @@ def log_session(
     model_used: str,
     fallback: bool,
     agents_output: dict
-):
-    """Salva log completo da sessão."""
-    get_supabase().table("session_log").insert({
+) -> str:
+    """Salva log completo da sessão e retorna o session_id."""
+    sb = get_supabase()
+    result = sb.table("session_log").insert({
         "student_id": student_id,
         "question": question,
         "topic": topic,
         "model_used": model_used,
         "fallback": fallback,
         "agents_output": agents_output,
+    }).execute()
+    return result.data[0]["id"] if result.data else None
+
+
+def log_broken_link(
+    student_id: str,
+    session_id: str,
+    agent_name: str,
+    url: str,
+    note: str = None
+):
+    """Registra um report de link quebrado."""
+    sb = get_supabase()
+    sb.table("broken_link_reports").insert({
+        "student_id": student_id,
+        "session_id": session_id,
+        "agent_name": agent_name,
+        "url": url,
+        "note": note,
     }).execute()
 
 

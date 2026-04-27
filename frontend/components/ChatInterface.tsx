@@ -29,6 +29,7 @@ export function ChatInterface() {
   const [loading, setLoading] = useState(false);
   const [streamingAgent, setStreamingAgent] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [model, setModel] = useState(MODELS[0]);
   const [due, setDue] = useState<DueReview[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -71,8 +72,9 @@ export function ChatInterface() {
         setActiveTab(agent.agent_name);
         setAgents((prev) => [...prev, agent]);
       },
-      (dueList) => {
+      (dueList, sessionIdFromServer) => {
         setDue(dueList);
+        setSessionId(sessionIdFromServer ?? null);
         setStreamingAgent(null);
         setLoading(false);
       },
@@ -264,6 +266,8 @@ export function ChatInterface() {
                       <AgentPanel
                         agent={agents.find((a) => a.agent_name === activeTab)!}
                         streaming={streamingAgent === activeTab}
+                        sessionId={sessionId}
+                        studentEmail="aluno@ufsm.br"
                       />
                     </div>
                   )}

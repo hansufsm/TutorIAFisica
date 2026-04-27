@@ -4,11 +4,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from backend.schemas.request import TutorRequest, EvaluatorFeedback
+from backend.schemas.request import TutorRequest, EvaluatorFeedback, BrokenLinkReport
 from backend.schemas.response import TutorResponse, AgentOutput
 from backend.db.student_model import (
     get_or_create_student, get_concepts_due_for_review,
-    update_concept_after_answer, log_session
+    update_concept_after_answer, log_session, log_broken_link
 )
 
 # Importa lógica Python INTACTA
@@ -68,7 +68,7 @@ async def ask_tutor(req: TutorRequest):
             agents_dict[name] = content
 
     # Salvar sessão no Supabase
-    log_session(
+    session_id = log_session(
         student_id=student["id"],
         question=req.question,
         topic=getattr(result, "domain", ""),
@@ -83,6 +83,7 @@ async def ask_tutor(req: TutorRequest):
         used_model=result.used_model_display_name or req.model_name,
         fallback_occurred=result.fallback_occurred or False,
         due_for_review=due[:3],  # máximo 3 sugestões
+        session_id=session_id,
     )
 
 
@@ -132,7 +133,15 @@ async def ask_tutor_stream(req: TutorRequest):
                     yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
         due = get_concepts_due_for_review(student["id"])
-        yield f"data: {json.dumps({'is_final': True, 'due_for_review': due[:3]})}\n\n"
+        session_id = log_session(
+            student_id=student["id"],
+            question=req.question,
+            topic=getattr(state, "domain", ""),
+            model_used=result.used_model_display_name if 'result' in locals() else req.model_name,
+            fallback=result.fallback_occurred if 'result' in locals() else False,
+            agents_output=agents_dict,
+        )
+        yield f"data: {json.dumps({'is_final': True, 'due_for_review': due[:3], 'session_id': session_id})}\n\n"
 
     return StreamingResponse(
         generate(),
@@ -153,6 +162,20 @@ async def submit_feedback(fb: EvaluatorFeedback):
         quality=fb.quality,
     )
     return {"updated": updated}
+
+
+@router.post("/report-link")
+async def report_broken_link(report: BrokenLinkReport):
+    """Registra um report de link quebrado/inexistente de uma referência."""
+    student = get_or_create_student(report.student_email)
+    log_broken_link(
+        student_id=student["id"],
+        session_id=report.session_id,
+        agent_name=report.agent_name,
+        url=report.url,
+        note=report.note,
+    )
+    return {"received": True}
 
 
 @router.post("/transcribe")

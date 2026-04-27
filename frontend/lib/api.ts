@@ -31,6 +31,7 @@ export interface TutorResponse {
   used_model: string;
   fallback_occurred: boolean;
   due_for_review: DueReview[];
+  session_id?: string;
 }
 
 export interface DueReview {
@@ -51,7 +52,7 @@ export interface TutorRequest {
 export async function askTutorStream(
   req: TutorRequest,
   onAgent: (a: AgentOutput) => void,
-  onDone: (due: DueReview[]) => void,
+  onDone: (due: DueReview[], sessionId?: string) => void,
   onError: (e: string) => void
 ): Promise<void> {
   const res = await fetch(`${API}/tutor/ask/stream`, {
@@ -76,7 +77,7 @@ export async function askTutorStream(
       try {
         const data = JSON.parse(line.slice(6));
         if (data.is_final) {
-          onDone(data.due_for_review ?? []);
+          onDone(data.due_for_review ?? [], data.session_id);
           break;
         }
         if (data.error) {
@@ -116,4 +117,25 @@ export async function submitFeedback(
     }),
   });
   if (!res.ok) throw new Error(`Feedback submission failed: ${res.status}`);
+}
+
+export async function reportBrokenLink(payload: {
+  studentEmail: string;
+  sessionId?: string;
+  agentName: string;
+  url: string;
+  note?: string;
+}) {
+  const res = await fetch(`${API}/tutor/report-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      student_email: payload.studentEmail,
+      session_id: payload.sessionId,
+      agent_name: payload.agentName,
+      url: payload.url,
+      note: payload.note,
+    }),
+  });
+  if (!res.ok) throw new Error(`Broken link report failed: ${res.status}`);
 }

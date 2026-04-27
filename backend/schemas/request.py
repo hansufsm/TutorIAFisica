@@ -15,3 +15,10 @@ class EvaluatorFeedback(BaseModel):
     topic: str
     correct: bool
     quality: int = 3    # 0-5
+
+class BrokenLinkReport(BaseModel):
+    student_email: str
+    session_id: Optional[str] = None
+    agent_name: str
+    url: str
+    note: Optional[str] = None
