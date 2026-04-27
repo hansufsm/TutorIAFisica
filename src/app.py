@@ -1,5 +1,5 @@
 import streamlit as st
-from core import PhysicsOrchestrator, TutorIAAgent
+from core import PhysicsOrchestrator, TutorIAAgent, PhysicsState
 from pypdf import PdfReader
 import os, re
 from PIL import Image
@@ -101,6 +101,91 @@ st.markdown("""
 def extract_text_from_pdf(uploaded_file):
     reader = PdfReader(uploaded_file)
     return " ".join([page.extract_text() + " " for page in reader.pages])
+
+def generate_reference_response(
+    question: str,
+    manual_notes: str = "",
+    pcloud_url: str = "",
+    repo_url: str = "",
+    adopted_url: str = "",
+    on_progress=None,
+) -> PhysicsState:
+    """
+    Gera resposta apenas com material de referência local, sem chamar API.
+
+    Retorna PhysicsState preenchido com:
+    - ufsm_alignment e ufsm_context (busca no ementário)
+    - Notas do professor e documentos carregados
+    - Mensagem clara que é Modo Referência
+    """
+    state = PhysicsState(raw_input=question, teacher_notes=manual_notes, pcloud_url=pcloud_url)
+
+    # Sincroniza dados externos (pCloud, notas)
+    state.sync_external_data(on_progress=on_progress, repo_url=repo_url, adopted_url=adopted_url)
+
+    # Tenta extrair conceitos da pergunta via keyword matching simples
+    # Tokeniza a pergunta e busca no syllabus
+    keywords = re.findall(r'\b\w{4,}\b', question.lower())
+    state.concepts = keywords[:3] if keywords else ["conceito"]
+
+    # Busca match no ementário UFSM
+    state._check_ufsm_syllabus()
+
+    # Preenche campos com mensagem de Modo Referência
+    state.pergunta_socratica = (
+        "⚠️ **Modo Referência** (sem explicação gerada por IA)\n\n"
+        "Para uma explicação completa, configure uma chave API na sidebar e selecione 'Modo IA'."
+    )
+
+    # Se encontrou tópico na UFSM, exibe a ementa
+    if state.ufsm_context:
+        state.pergunta_socratica += f"\n\n**Tópico Encontrado na UFSM:**\n\n{state.ufsm_context}"
+
+    # Exibe notas do professor se disponíveis
+    if state.professor_notes_text.strip():
+        state.solution_steps = (
+            "**📝 Notas do Professor:**\n\n" +
+            state.professor_notes_text[:1500] +  # Limita a 1500 chars para não sobrecarregar
+            ("\n\n... (truncado)" if len(state.professor_notes_text) > 1500 else "")
+        )
+    else:
+        state.solution_steps = "*(Nenhuma nota do professor carregada)*"
+
+    # Exibe documentos adotados se disponíveis
+    if state.adopted_docs_text.strip():
+        state.code_snippet = (
+            "**📗 Documentos Adotados:**\n\n" +
+            state.adopted_docs_text[:1500] +
+            ("\n\n... (truncado)" if len(state.adopted_docs_text) > 1500 else "")
+        )
+    else:
+        state.code_snippet = "*(Nenhum documento adotado carregado)*"
+
+    # Exibe ementa no mapa mental
+    if state.ufsm_alignment:
+        disc = state.ufsm_alignment
+        state.mapa_mental_markdown = f"""
+### 🏛️ Disciplina UFSM: {disc.get('nome', 'N/A')} ({disc.get('codigo', 'N/A')})
+
+**Período:** {disc.get('periodo', 'N/A')}
+
+**Temas da Ementa:**
+{chr(10).join(f"- {t}" for t in disc.get('temas', []))}
+
+**Bibliografia Básica:**
+{chr(10).join(f"- {b}" for b in disc.get('bibliografia_basica', [])[:5])}
+"""
+    else:
+        state.mapa_mental_markdown = "*(Tópico não encontrado na ementa da UFSM)*"
+
+    # Avaliador: sem quiz em Modo Referência
+    state.quiz_question = "*(Quiz não disponível em Modo Referência)*"
+
+    # Flag: Modo Referência não conta como "modelo utilizado"
+    state.used_model_display_name = None
+    state.fallback_occurred = False
+
+    return state
 
 def display_math_content(content: str):
     """Exibe conteúdo com suporte melhorado a LaTeX/KaTeX."""
@@ -252,6 +337,15 @@ def main():
         st.markdown("### 🌐 Busca Web Inteligente")
         web_search_enabled = st.checkbox("Consultar portais acadêmicos + arXiv", value=True, key="web_search_toggle", help="Adiciona ~10-15 segundos, conecta dúvida a pesquisa real")
 
+        st.divider()
+        st.markdown("## 🔬 Modo de Resposta")
+        response_mode = st.radio(
+            "Como deseja a resposta?",
+            ["Modo IA", "Modo Referência"],
+            index=0,
+            help="Modo IA: Explicação completa com os 5 agentes (requer API). Modo Referência: Material local (ementário UFSM + notas do professor, sem API)."
+        )
+
     # --- NOTIFICAÇÃO DE REVISÕES PENDENTES ---
     if "student_model" in st.session_state and st.session_state.student_model:
         due = st.session_state.student_model.get_due_for_review()
@@ -274,47 +368,59 @@ def main():
                      if runtime_key_input:
                          runtime_keys[key_name] = runtime_key_input
 
-            # Debug: Validate input materials (internal only, not displayed to user)
-            
-            # Instancia o Orchestrator com o modelo selecionado pelo usuário e chaves runtime
-            orchestrator = PhysicsOrchestrator(
-                selected_model_display_name=st.session_state.selected_model_display_name,
-                runtime_keys=runtime_keys
-            )
-
             img_obj = Image.open(input_image) if input_image else None
 
-            # Verifica se o modelo selecionado requer chave e ela está ausente
-            needs_key = Config.get_provider_key_name(st.session_state.selected_model_display_name)
-            if needs_key and not os.getenv(Config.get_provider_key_name(st.session_state.selected_model_display_name)) and not runtime_keys.get(Config.get_provider_key_name(st.session_state.selected_model_display_name)):
-                 st.warning(f"Chave API para o modelo selecionado '{st.session_state.selected_model_display_name}' não encontrada. O sistema tentará modelos alternativos.")
-
             with st.status("🔄 Iniciando análise...", expanded=True) as status:
-                res = orchestrator.run(
-                    enunciado,
-                    manual_notes,
-                    pcloud_url,
-                    repo_url=pcloud_repo_url,
-                    adopted_url=adopted_docs_url,
-                    enable_web_search=web_search_enabled,
-                    image=img_obj,
-                    on_progress=st.write
-                )
-                st.session_state.last_result = res
-
-                # Update Student Model
-                if "student_model" in st.session_state and st.session_state.student_model and res.concepts:
-                    discipline = res.ufsm_alignment["nome"] if res.ufsm_alignment else ""
-                    st.session_state.student_model.update_after_session(res.concepts, discipline)
-                    st.session_state.student_model.save("data/students")
-                    st.session_state.last_seen_concept_id = re.sub(r"[^\w]", "_", res.concepts[0].lower()) if res.concepts else ""
-
-                if res.fallback_occurred:
-                    st.warning(f"Fallback ativo. Usando **{res.used_model_display_name}** para a resposta.")
-                elif res.used_model_display_name:
-                    st.success(f"Modelo ativo: **{res.used_model_display_name}**")
+                # Branch: Modo Referência vs. Modo IA
+                if response_mode == "Modo Referência":
+                    # Gera resposta apenas com material de referência (sem chamar API)
+                    res = generate_reference_response(
+                        question=enunciado,
+                        manual_notes=manual_notes,
+                        pcloud_url=pcloud_url,
+                        repo_url=pcloud_repo_url,
+                        adopted_url=adopted_docs_url,
+                        on_progress=st.write
+                    )
+                    st.session_state.last_result = res
+                    st.info("📚 **Modo Referência ativado** — exibindo apenas material local. Configure uma chave API e selecione 'Modo IA' para resposta com IA.")
                 else:
-                    st.error("Não foi possível obter uma resposta de nenhum modelo disponível.")
+                    # Modo IA: usa orchestrator com modelos LLM
+                    orchestrator = PhysicsOrchestrator(
+                        selected_model_display_name=st.session_state.selected_model_display_name,
+                        runtime_keys=runtime_keys
+                    )
+
+                    # Verifica se o modelo selecionado requer chave e ela está ausente
+                    needs_key = Config.get_provider_key_name(st.session_state.selected_model_display_name)
+                    if needs_key and not os.getenv(Config.get_provider_key_name(st.session_state.selected_model_display_name)) and not runtime_keys.get(Config.get_provider_key_name(st.session_state.selected_model_display_name)):
+                         st.warning(f"Chave API para o modelo selecionado '{st.session_state.selected_model_display_name}' não encontrada. O sistema tentará modelos alternativos.")
+
+                    res = orchestrator.run(
+                        enunciado,
+                        manual_notes,
+                        pcloud_url,
+                        repo_url=pcloud_repo_url,
+                        adopted_url=adopted_docs_url,
+                        enable_web_search=web_search_enabled,
+                        image=img_obj,
+                        on_progress=st.write
+                    )
+                    st.session_state.last_result = res
+
+                    # Update Student Model (apenas para Modo IA)
+                    if "student_model" in st.session_state and st.session_state.student_model and res.concepts:
+                        discipline = res.ufsm_alignment["nome"] if res.ufsm_alignment else ""
+                        st.session_state.student_model.update_after_session(res.concepts, discipline)
+                        st.session_state.student_model.save("data/students")
+                        st.session_state.last_seen_concept_id = re.sub(r"[^\w]", "_", res.concepts[0].lower()) if res.concepts else ""
+
+                    if res.fallback_occurred:
+                        st.warning(f"Fallback ativo. Usando **{res.used_model_display_name}** para a resposta.")
+                    elif res.used_model_display_name:
+                        st.success(f"Modelo ativo: **{res.used_model_display_name}**")
+                    else:
+                        st.error("Não foi possível obter uma resposta de nenhum modelo disponível.")
 
                 st.divider()
                 st.subheader("📊 Fontes Utilizadas (Hierarquia)")
