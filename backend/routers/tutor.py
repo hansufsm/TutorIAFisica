@@ -26,22 +26,23 @@ AGENT_META = {
 }
 
 FIELD_MAP = [
-    ("Intérprete",   "concepts"),
+    ("Intérprete",   "pergunta_socratica"),
     ("Solucionador", "solution_steps"),
-    ("Visualizador", "visualization_code"),
-    ("Curador",      "academic_sources"),
-    ("Avaliador",    "formative_challenge"),
+    ("Visualizador", "code_snippet"),
+    ("Curador",      "mapa_mental_markdown"),
+    ("Avaliador",    "quiz_question"),
 ]
 
 
 def _build_state(req: TutorRequest) -> tuple[PhysicsState, str, str]:
-    state = PhysicsState(question=req.question)
+    state = PhysicsState(raw_input=req.question)
     if req.image_base64 and req.image_media_type:
-        state.image = {"data": req.image_base64, "media_type": req.image_media_type}
+        state.image_input = {"data": req.image_base64, "media_type": req.image_media_type}
     model_info = Config.AVAILABLE_MODELS.get(req.model_name,
         list(Config.AVAILABLE_MODELS.values())[0])
     model_id = model_info["id"]
-    api_key = os.getenv(Config.get_provider_key_name(req.model_name), "")
+    key_name = Config.get_provider_key_name(req.model_name)
+    api_key = os.getenv(key_name, "") if key_name else ""
     return state, model_id, api_key
 
 
