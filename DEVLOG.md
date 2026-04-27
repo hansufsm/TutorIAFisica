@@ -4,6 +4,52 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Complete UI Redesign with Dark Theme + Tailwind CSS
+
+**Commit:** `efea2e2`
+
+### O que foi feito
+- ✅ Reorganizou estrutura Next.js: `frontend/src/app` → `frontend/app`, `src/components` → `frontend/components`, `src/lib` → `frontend/lib` (App Router compatibility)
+- ✅ Instalou e configurou infraestrutura Tailwind CSS:
+  - Criado `tailwind.config.js` com content paths corretos
+  - Criado `postcss.config.js` para integração PostCSS
+  - Adicionadas dependências: `tailwindcss`, `postcss`, `autoprefixer`, `@tailwindcss/typography`
+- ✅ Redesenhado `globals.css` com dark theme profissional:
+  - Sistema de 8 cores CSS variables (--bg-primary, --accent-primary, etc.)
+  - Classes utilitárias `.glass`, `.glass-sm`, `.gradient-text`, `.btn-primary`, `.btn-secondary`
+  - Scrollbar com gradient indigo/cyan
+  - Animações suaves: slideInUp (0.4s), fadeIn (0.3s), pulse-soft, shimmer
+- ✅ Reescrita completa `ChatInterface.tsx`:
+  - **Sidebar colapsível** (w-64 ↔ w-20) com logo gradient, nav items, model selector
+  - **Dark background** com gradient (slate-950 → slate-900)
+  - **Welcome state**: Hero com gradient text "Bem-vindo ao TutorIA" + 4 quick action cards com glassmorphism
+  - **Chat state**: Due reviews como pills, agent responses, loading spinner animado
+  - **Input área sticky**: Textarea auto-resize, voice input button, send button gradient
+- ✅ Atualizado `AgentPanel.tsx`: Dark theme com glassmorphism, prose-invert, cyan/blue accents
+- ✅ Atualizado `layout.tsx`: Added `suppressHydrationWarning` para browser extensions
+- ✅ Fixed `tsconfig.json` paths para nova estrutura
+- ✅ Dev server rodando, UI renderizando com todos os estilos aplicados
+
+### Decisões
+- Escolhido padrão **Hybrid** (Manus minimalism + Claude modern sidebar) após avaliação de 3 opções
+- Tailwind CSS como framework primário (vs pure CSS) para escalabilidade
+- Dark theme como padrão (slate-950, indigo, cyan) alinhado com design moderno
+- Glassmorphism via `backdrop-blur-lg` para efeito premium
+- Sidebar colapsível melhora usabilidade em telas pequenas
+
+### Por que foi necessário
+UI anterior aparecia como texto plano sem estilos — faltavam arquivos críticos `tailwind.config.js` e `postcss.config.js`, então os `@tailwind` directives não estavam sendo compilados em CSS real.
+
+### Status
+🟢 **COMPLETO** — Dark theme + glassmorphism live, app visualmente competitiva com Manus/ChatGPT/Claude
+
+### Próximas Prioridades
+1. Testar VoiceInput em dark theme
+2. Testar agent responses com AgentPanel rendering
+3. Verificar responsividade mobile/tablet
+
+---
+
 ## 📅 2026-04-27 — Premium Design System Implementation (Hero + Chat)
 
 **Commit:** `2518d7e`
