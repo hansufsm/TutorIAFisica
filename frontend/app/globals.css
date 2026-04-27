@@ -16,17 +16,40 @@
     --accent-secondary: #06b6d4;
   }
 
+  :root.light {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #f1f5f9;
+    --bg-tertiary: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --border-color: #cbd5e1;
+    --accent-primary: #6366f1;
+    --accent-secondary: #06b6d4;
+  }
+
   html {
     @apply scroll-smooth bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950;
     font-family: 'Geist', -apple-system, system-ui, sans-serif;
+  }
+
+  :root.light html {
+    @apply bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50;
   }
 
   body {
     @apply bg-transparent text-slate-100 antialiased;
   }
 
+  :root.light body {
+    @apply text-slate-900;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold text-slate-50;
+  }
+
+  :root.light h1, :root.light h2, :root.light h3, :root.light h4, :root.light h5, :root.light h6 {
+    @apply text-slate-900;
   }
 }
 
@@ -95,10 +118,22 @@ select {
   backdrop-filter: blur(10px);
 }
 
+:root.light input,
+:root.light textarea,
+:root.light select {
+  @apply bg-white/50 border-slate-300/50 text-slate-900 placeholder-slate-500;
+}
+
 input:focus,
 textarea:focus,
 select:focus {
   @apply outline-none border-slate-600 bg-slate-800/80 ring-2 ring-indigo-500/30;
+}
+
+:root.light input:focus,
+:root.light textarea:focus,
+:root.light select:focus {
+  @apply outline-none border-slate-400 bg-white/80 ring-2 ring-indigo-500/20;
 }
 
 /* Buttons elegantes */
@@ -116,8 +151,16 @@ select:focus {
   @apply bg-slate-800/40 backdrop-blur-lg border border-slate-700/30;
 }
 
+:root.light .glass {
+  @apply bg-white/60 border-slate-200/50;
+}
+
 .glass-sm {
   @apply bg-slate-900/30 backdrop-blur-md border border-slate-700/20;
+}
+
+:root.light .glass-sm {
+  @apply bg-white/40 border-slate-200/30;
 }
 
 /* Gradients */

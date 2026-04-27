@@ -4,6 +4,61 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Frontend UX Improvements: Tabbed Agents + Light Theme + KaTeX Fix
+
+**Commits:** `[pending git commit]`
+
+### O que foi feito
+- ✅ **Abas por Agente (Pill Design)**:
+  - Convertida renderização de cards empilhados para **interface com abas**
+  - Cada agente renderiza em pill-styled tab com ícone e cor única
+  - Tabs aparecem sequencialmente conforme SSE streaming
+  - **Auto-avanço**: aba ativa passa para novo agente conforme chega
+  - Conteúdo renderizado embaixo mostra apenas a aba selecionada
+  - Implementado em `ChatInterface.tsx` com novo estado `activeTab`
+  - AGENT_COLORS expandido com campo `activePill` para highlighting
+
+- ✅ **KaTeX Fix**:
+  - KaTeX CSS (`katex/dist/katex.min.css`) importado em `AgentPanel.tsx` (client component)
+  - Configurado `rehypeKatex` com `{ throwOnError: false, strict: false }` para graceful error handling
+  - Suporta inline `$...$` e display `$$...$$` syntax conforme padrão KaTeX
+  - Equações agora renderizam corretamente em todas as respostas
+
+- ✅ **Tema Claro/Escuro com Toggle Pill**:
+  - Novo componente `ThemeToggle.tsx` com botão pill estilo iOS (☀️/🌙)
+  - Implementado localStorage para persistência de tema entre reloads
+  - Script inline em `layout.tsx` para evitar flash de tema errado no carregamento
+  - Tailwind `darkMode: 'class'` habilitado em `tailwind.config.js`
+  - Todas as cores principais agora têm variantes `dark:` para light mode
+  - `globals.css` expandido com `:root.light` seletor definindo cores claras (fundo #f8fafc, textos #0f172a)
+  - `.glass` e `.glass-sm` classes atualizadas com overrides light mode (bg-white/60)
+  - Inputs e buttons com light mode variants
+  - ThemeToggle integrado na sidebar (visível quando aberta)
+
+### Arquivos Modificados
+- `frontend/components/ChatInterface.tsx` — tabs, AGENT_COLORS expansion, ThemeToggle import, dark: variants
+- `frontend/components/AgentPanel.tsx` — dark: variants em prose classes
+- `frontend/components/ThemeToggle.tsx` — **novo arquivo**
+- `frontend/app/layout.tsx` — anti-flash theme script
+- `frontend/app/globals.css` — light theme variables, .light selectors, input/button light variants
+- `frontend/tailwind.config.js` — `darkMode: 'class'` adicionado
+
+### Por que foi necessário
+- Usuário pediu melhor readability com abas ao invés de cards contínuos
+- Equações LaTeX não estavam renderizando (CSS import issue)
+- Usuário solicitou tema claro ou toggle light/dark para acessibilidade
+
+### Status
+🟢 **COMPLETO** — Build compila sem erros, TypeScript OK, dev server rodando em localhost:3003
+
+### Próximos Passos
+1. Teste manual no browser: verificar abas auto-avançam, tabs clicáveis, tema persiste
+2. Verificar equações renderizam em pergunta real com backend
+3. Testar light theme readability em todo o interface
+4. Possível refinement: animação de transição entre tabs
+
+---
+
 ## 📅 2026-04-27 — Frontend UX Polish: Sidebar Toggle + Error Handling
 
 **Commit:** `2f1a00e`

@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { AgentPanel } from "./AgentPanel";
 import { VoiceInput } from "./VoiceInput";
+import { ThemeToggle } from "./ThemeToggle";
 import { askTutorStream, AgentOutput, DueReview } from "@/lib/api";
 import { Menu, X, Plus, MessageSquare, BookOpen, Settings, Send, ChevronDown } from "lucide-react";
 
@@ -14,11 +15,20 @@ const QUICK_ACTIONS = [
   { icon: "🎯", label: "Desafio", desc: "Teste seu conhecimento" },
 ];
 
+const AGENT_COLORS: Record<string, { icon: string; dotColor: string; activePill: string }> = {
+  "Intérprete": { icon: "🔵", dotColor: "bg-indigo-500", activePill: "bg-indigo-600 dark:bg-indigo-600" },
+  "Solucionador": { icon: "🟢", dotColor: "bg-emerald-500", activePill: "bg-emerald-600 dark:bg-emerald-600" },
+  "Visualizador": { icon: "🟠", dotColor: "bg-orange-500", activePill: "bg-orange-600 dark:bg-orange-600" },
+  "Curador": { icon: "🟣", dotColor: "bg-purple-500", activePill: "bg-purple-600 dark:bg-purple-600" },
+  "Avaliador": { icon: "🔴", dotColor: "bg-red-500", activePill: "bg-red-600 dark:bg-red-600" },
+};
+
 export function ChatInterface() {
   const [question, setQuestion] = useState("");
   const [agents, setAgents] = useState<AgentOutput[]>([]);
   const [loading, setLoading] = useState(false);
   const [streamingAgent, setStreamingAgent] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [model, setModel] = useState(MODELS[0]);
   const [due, setDue] = useState<DueReview[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +57,7 @@ export function ChatInterface() {
     setLoading(true);
     setShowChat(true);
     setAgents([]);
+    setActiveTab(null);
     setError(null);
 
     await askTutorStream(
@@ -57,6 +68,7 @@ export function ChatInterface() {
       },
       (agent) => {
         setStreamingAgent(agent.agent_name);
+        setActiveTab(agent.agent_name);
         setAgents((prev) => [...prev, agent]);
       },
       (dueList) => {
@@ -72,12 +84,12 @@ export function ChatInterface() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-950">
+    <div className="flex h-screen bg-slate-950 dark:bg-slate-950">
       {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? "w-64" : "w-20"
-        } transition-all duration-300 border-r border-slate-700/50 glass flex flex-col p-4 overflow-y-auto`}
+        } transition-all duration-300 border-r border-slate-700/50 dark:border-slate-700/50 glass flex flex-col p-4 overflow-y-auto`}
       >
         {/* Logo + Toggle */}
         <div className="flex items-center gap-3 mb-8">
@@ -86,13 +98,13 @@ export function ChatInterface() {
           </div>
           {sidebarOpen && (
             <div className="flex-1">
-              <h1 className="font-bold text-slate-50">TutorIA</h1>
-              <p className="text-xs text-slate-400">Física</p>
+              <h1 className="font-bold text-slate-50 dark:text-slate-50">TutorIA</h1>
+              <p className="text-xs text-slate-400 dark:text-slate-400">Física</p>
             </div>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg text-slate-400 hover:bg-slate-800/30 transition flex-shrink-0"
+            className="p-2 rounded-lg text-slate-400 dark:text-slate-400 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 transition flex-shrink-0"
             title={sidebarOpen ? "Fechar" : "Abrir"}
           >
             {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
@@ -117,9 +129,9 @@ export function ChatInterface() {
           </nav>
         )}
 
-        {/* Model Selector */}
-        <div className={`border-t border-slate-700/30 pt-4 ${!sidebarOpen && "text-center"}`}>
-          {sidebarOpen && <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Modelo</p>}
+        {/* Model Selector + Theme Toggle */}
+        <div className={`border-t border-slate-700/30 dark:border-slate-700/30 pt-4 space-y-3 ${!sidebarOpen && "text-center"}`}>
+          {sidebarOpen && <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 uppercase mb-3">Modelo</p>}
           <div className="relative">
             <select
               value={model}
@@ -132,21 +144,27 @@ export function ChatInterface() {
                 </option>
               ))}
             </select>
-            {sidebarOpen && <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />}
+            {sidebarOpen && <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-400 pointer-events-none" />}
           </div>
+          {sidebarOpen && (
+            <>
+              <p className="text-xs font-semibold text-slate-400 dark:text-slate-400 uppercase">Tema</p>
+              <ThemeToggle />
+            </>
+          )}
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="border-b border-slate-700/30 px-8 py-4 glass-sm flex items-center justify-between">
+        <header className="border-b border-slate-700/30 dark:border-slate-700/30 px-8 py-4 glass-sm flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-50">TutorIA Física 1.0</h1>
-            <p className="text-xs text-slate-400">Mentor inteligente para ensino de física</p>
+            <h1 className="text-xl font-bold text-slate-50 dark:text-slate-50">TutorIA Física 1.0</h1>
+            <p className="text-xs text-slate-400 dark:text-slate-400">Mentor inteligente para ensino de física</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="p-2 rounded-lg text-slate-400 hover:bg-slate-800/30 transition">
+            <button className="p-2 rounded-lg text-slate-400 dark:text-slate-400 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 transition">
               <Settings size={20} />
             </button>
           </div>
@@ -163,10 +181,10 @@ export function ChatInterface() {
                   <div className="inline-block mb-6">
                     <div className="text-6xl">⚛️</div>
                   </div>
-                  <h2 className="text-5xl font-bold text-slate-50 mb-4">
+                  <h2 className="text-5xl font-bold text-slate-50 dark:text-slate-50 mb-4">
                     Bem-vindo ao <span className="gradient-text">TutorIA</span>
                   </h2>
-                  <p className="text-lg text-slate-400 mb-8">
+                  <p className="text-lg text-slate-400 dark:text-slate-400 mb-8">
                     Seu mentor inteligente para dominar Física. Conceitos, soluções e desafios.
                   </p>
                 </div>
@@ -180,11 +198,11 @@ export function ChatInterface() {
                         setQuestion(action.label);
                         submit();
                       }}
-                      className="group p-6 rounded-xl glass hover:glass border-slate-600/30 hover:border-indigo-500/50 transition-all duration-300 text-left hover:shadow-lg hover:shadow-indigo-500/10 active:scale-95"
+                      className="group p-6 rounded-xl glass hover:glass border-slate-600/30 dark:border-slate-600/30 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 transition-all duration-300 text-left hover:shadow-lg hover:shadow-indigo-500/10 dark:hover:shadow-indigo-500/10 active:scale-95"
                     >
                       <div className="text-3xl mb-3 group-hover:scale-110 transition">{action.icon}</div>
-                      <h3 className="font-semibold text-slate-50 mb-1">{action.label}</h3>
-                      <p className="text-sm text-slate-400">{action.desc}</p>
+                      <h3 className="font-semibold text-slate-50 dark:text-slate-50 mb-1">{action.label}</h3>
+                      <p className="text-sm text-slate-400 dark:text-slate-400">{action.desc}</p>
                     </button>
                   ))}
                 </div>
@@ -195,13 +213,13 @@ export function ChatInterface() {
             <div className="max-w-2xl mx-auto w-full">
               {/* Due Reviews */}
               {due.length > 0 && (
-                <div className="mb-6 p-4 glass rounded-lg border border-slate-600/20 animate-slide-in-up">
-                  <p className="text-sm font-semibold text-slate-50 mb-3">📚 Para revisar:</p>
+                <div className="mb-6 p-4 glass rounded-lg border border-slate-600/20 dark:border-slate-600/20 animate-slide-in-up">
+                  <p className="text-sm font-semibold text-slate-50 dark:text-slate-50 mb-3">📚 Para revisar:</p>
                   <div className="flex flex-wrap gap-2">
                     {due.map((d) => (
                       <span
                         key={d.concept_id}
-                        className="px-3 py-1 bg-slate-700/30 border border-slate-600/30 text-slate-300 rounded text-xs font-medium"
+                        className="px-3 py-1 bg-slate-700/30 dark:bg-slate-700/30 border border-slate-600/30 dark:border-slate-600/30 text-slate-300 dark:text-slate-300 rounded text-xs font-medium"
                       >
                         {d.concept_id} • {Math.round(d.mastery_level * 100)}%
                       </span>
@@ -210,31 +228,60 @@ export function ChatInterface() {
                 </div>
               )}
 
-              {/* Agents */}
+              {/* Agents Tabs */}
               {agents.length > 0 && (
-                <div className="space-y-4 mb-8">
-                  {agents.map((a, i) => (
-                    <AgentPanel
-                      key={i}
-                      agent={a}
-                      streaming={streamingAgent === a.agent_name}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="flex gap-2 flex-wrap mb-4">
+                    {agents.map((a) => {
+                      const config = AGENT_COLORS[a.agent_name] || {
+                        icon: "⚙️",
+                        dotColor: "bg-slate-500",
+                        activePill: "bg-slate-600 dark:bg-slate-600",
+                      };
+                      const isActive = activeTab === a.agent_name;
+                      return (
+                        <button
+                          key={a.agent_name}
+                          onClick={() => setActiveTab(a.agent_name)}
+                          className={`
+                            flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all
+                            ${isActive
+                              ? `${config.activePill} text-white shadow-md`
+                              : "bg-slate-800/50 dark:bg-slate-700/50 text-slate-400 dark:text-slate-400 hover:text-slate-200 dark:hover:text-slate-200 hover:bg-slate-700/50 dark:hover:bg-slate-600/50"}
+                            ${streamingAgent === a.agent_name ? "animate-pulse-soft" : ""}
+                          `}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${config.dotColor}`} />
+                          {config.icon} {a.agent_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active Agent Content */}
+                  {activeTab && (
+                    <div className="mb-8 animate-slide-in-up">
+                      <AgentPanel
+                        agent={agents.find((a) => a.agent_name === activeTab)!}
+                        streaming={streamingAgent === activeTab}
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Error */}
               {error && (
                 <div className="fixed bottom-20 left-1/2 -translate-x-1/2 max-w-md z-50 animate-slide-in-up">
-                  <div className="p-3 rounded-lg bg-red-950/80 border border-red-500/30 text-red-200 text-sm flex items-start gap-3 shadow-lg backdrop-blur">
+                  <div className="p-3 rounded-lg bg-red-950/80 dark:bg-red-950/80 border border-red-500/30 dark:border-red-500/30 text-red-200 dark:text-red-200 text-sm flex items-start gap-3 shadow-lg backdrop-blur">
                     <span className="text-lg flex-shrink-0">⚠️</span>
                     <div className="flex-1">
-                      <p className="font-medium text-red-100">Erro</p>
-                      <p className="text-red-300 text-xs mt-1">{error}</p>
+                      <p className="font-medium text-red-100 dark:text-red-100">Erro</p>
+                      <p className="text-red-300 dark:text-red-300 text-xs mt-1">{error}</p>
                     </div>
                     <button
                       onClick={() => setError(null)}
-                      className="flex-shrink-0 text-red-400 hover:text-red-300 transition"
+                      className="flex-shrink-0 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 transition"
                       title="Fechar"
                     >
                       <X size={16} />
@@ -258,13 +305,13 @@ export function ChatInterface() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-700/30 glass-sm px-8 py-6">
+        <div className="border-t border-slate-700/30 dark:border-slate-700/30 glass-sm px-8 py-6">
           <div className="max-w-2xl mx-auto">
             <div className="flex gap-3">
               <div className="flex-1">
                 <textarea
                   ref={textareaRef}
-                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-sm resize-none placeholder-slate-500 text-slate-50 transition-all backdrop-blur focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 focus:bg-slate-800/80 max-h-32"
+                  className="w-full bg-slate-800/50 dark:bg-slate-800/50 border border-slate-700/50 dark:border-slate-700/50 rounded-xl p-4 text-sm resize-none placeholder-slate-500 dark:placeholder-slate-500 text-slate-50 dark:text-slate-50 transition-all backdrop-blur focus:outline-none focus:border-indigo-500/50 dark:focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-500/20 focus:bg-slate-800/80 dark:focus:bg-slate-800/80 max-h-32"
                   rows={2}
                   placeholder="Pergunte qualquer coisa sobre Física... (Shift+Enter para quebra de linha)"
                   value={question}
@@ -298,7 +345,7 @@ export function ChatInterface() {
                 </button>
               </div>
             </div>
-            <p className="text-xs text-slate-500 mt-2 text-center">Pressione <kbd className="px-2 py-1 bg-slate-800 rounded text-slate-400">Shift+Enter</kbd> para nova linha</p>
+            <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 text-center">Pressione <kbd className="px-2 py-1 bg-slate-800 dark:bg-slate-800 rounded text-slate-400 dark:text-slate-400">Shift+Enter</kbd> para nova linha</p>
           </div>
         </div>
       </main>
