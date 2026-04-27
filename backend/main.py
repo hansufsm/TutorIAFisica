@@ -25,6 +25,10 @@ app.add_middleware(
 app.include_router(tutor.router)
 app.include_router(student.router)
 
+@app.options("/{full_path:path}")
+async def preflight_handler(full_path: str):
+    return {"message": "OK"}
+
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "2026.2.0"}
