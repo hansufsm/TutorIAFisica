@@ -19,6 +19,7 @@ app.add_middleware(
     allow_origins=[
         os.getenv("FRONTEND_URL", "http://localhost:3000"),
         "http://localhost:3000",
+        "https://tutoriafisica.hans-059.workers.dev",
     ],
     allow_credentials=True,
     allow_methods=["*"],
