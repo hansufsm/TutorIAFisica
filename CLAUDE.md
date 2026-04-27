@@ -6,28 +6,83 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **TutorIAFisica** is an AI-powered academic tutoring system for physics education at the university level. It orchestrates multiple specialized AI agents that work together through a shared state object to provide comprehensive explanations, mathematical solutions, visualizations, and formative assessment.
 
-The system is built with **Streamlit** for the UI and **LiteLLM** for flexible model orchestration across multiple providers (Gemini, Claude, OpenAI, DeepSeek, Perplexity, Grok).
+The system is a **full-stack application** with three deployable tiers:
+- **Frontend**: Next.js SPA (React 18) deployed to Cloudflare Workers
+- **Backend**: FastAPI REST API with SSE streaming deployed to Render.com
+- **Legacy**: Streamlit prototype (still functional, used for reference mode)
+
+Core technologies: **LiteLLM** for multi-provider AI orchestration, **Supabase** for database (PostgreSQL) and auth, **React Markdown** + **KaTeX** for mathematical rendering, **Streamlit** for the offline reference interface.
 
 ## High-Level Architecture
 
+### Full-Stack Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js)                        │
+│              Cloudflare Workers (tutoriafisica...)           │
+│  - ChatInterface with SSE streaming from backend             │
+│  - VoiceInput transcription (/api/transcribe)                │
+│  - AgentPanel renders markdown + KaTeX for LaTeX             │
+└─────────────────────────────────────────────────────────────┘
+                              ↓ HTTP + SSE
+┌─────────────────────────────────────────────────────────────┐
+│                  Backend (FastAPI)                           │
+│               Render.com (tutor-ia-fisica-api...)            │
+│  - POST /tutor/ask, GET /tutor/ask/stream (SSE)              │
+│  - POST /tutor/feedback for SM-2 spaced repetition           │
+│  - Orchestrates PhysicsState + Agent Pipeline                │
+│  - Supabase integration for persistent StudentModel          │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│           LiteLLM Agent Orchestration (src/core.py)          │
+│  - Interpreter, Solver, Visualizer, Curator, Evaluator      │
+│  - Auto-fallback across multiple providers                   │
+│  - Multimodal support (image encoding for Gemini, Claude)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### Design Pattern: Agent Orchestration with Shared State
 
-The system follows a **Pipeline + State Pattern** where:
+The agent pipeline follows a **Pipeline + State Pattern** where:
 
 1. **PhysicsState** (`src/core.py`): A single mutable state object that flows through the pipeline. It starts with user input and accumulates results from each agent (concepts, solution, code, etc.).
 
 2. **Agent Pipeline**: Sequential agents process the problem:
-   - **Interpreter**: Initial reasoning and physics domain classification
-   - **Solver**: Mathematical rigor and SI unit consistency
-   - **Visualizer**: Python visualization code generation
-   - **Curator**: Real-world data enrichment and academic sourcing
-   - **Evaluator**: Formative assessment via Socratic questioning
+   - **Interpreter** 🔵: Initial reasoning and physics domain classification
+   - **Solver** 🟢: Mathematical rigor and SI unit consistency
+   - **Visualizer** 🟠: Python visualization code generation
+   - **Curator** 🟣: Real-world data enrichment and academic sourcing
+   - **Evaluator** 🔴: Formative assessment via Socratic questioning
 
 3. **PhysicsOrchestrator** (`src/core.py`): Coordinates the pipeline, validates outputs between agents, handles fallback logic, and tracks which model was actually used.
 
+4. **SSE Streaming** (`backend/routers/tutor.py`): Backend exposes `/tutor/ask/stream` endpoint for real-time agent output streaming to frontend.
+
 ### Key Components
 
-- **app.py**: Streamlit UI. Handles sidebar configuration, model/API key selection, image upload logic, and display of agent outputs with color-coded styling.
+#### Backend (`backend/`)
+
+- **main.py**: FastAPI application with CORS config and route mounting
+- **routers/tutor.py**: 
+  - `POST /tutor/ask` — synchronous request/response
+  - `GET /tutor/ask/stream` — SSE streaming for real-time output
+  - `POST /tutor/feedback` — SM-2 spaced repetition feedback collection
+- **db/supabase_client.py**: Supabase (PostgreSQL) connection for StudentModel persistence
+- **schemas/**: Request/response data models (TutorRequest, AgentOutput, TutorResponse)
+
+#### Frontend (`frontend/`)
+
+- **app/page.tsx**: Root layout with chat interface
+- **components/ChatInterface.tsx**: Main chat component with model selector and SSE subscription
+- **components/AgentPanel.tsx**: Renders individual agent output with markdown + KaTeX rendering
+- **components/VoiceInput.tsx**: Mic button for transcription via `/api/transcribe`
+- **lib/api.ts**: API client with SSE event handling and TypeScript types
+
+#### Shared Core (`src/`)
+
+- **app.py**: Streamlit UI (legacy, used for offline "Modo Referência"). Handles sidebar configuration, model/API key selection, image upload logic, and display of agent outputs with color-coded styling.
 - **config.py**: Centralized configuration including:
   - `AVAILABLE_MODELS`: Maps friendly names to LiteLLM model IDs and capabilities (multimodal flag)
   - `MODEL_PREFERENCE_ORDER`: Fallback chain when the primary model fails
@@ -37,6 +92,11 @@ The system follows a **Pipeline + State Pattern** where:
   - `TutorIAAgent`: Base class for all agents. Uses `litellm.completion()` for unified API calls and handles image encoding for multimodal models.
   - `PhysicsState`: Accumulates problem context and results
   - `PhysicsOrchestrator`: Runs the pipeline and implements fallback by catching `RateLimitError`, `AuthenticationError`, and `APIError`
+  - `process_streaming()`: Yields agent outputs line-by-line for SSE streaming
+- **models/student_model.py**: StudentModel class with SM-2 spaced repetition algorithm. Tracks:
+  - Review intervals and easiness factors
+  - Session count and last review timestamp
+  - Question difficulty estimation
 - **utils/pcloud_manager.py**: Cloud storage integration for fetching teacher notes from pCloud (uses public link extraction and PDF processing via `requests` + `io.BytesIO`)
 
 ### API Key & Fallback Flow
@@ -73,32 +133,281 @@ The system follows a **Pipeline + State Pattern** where:
 **Developer docs:** `docs/DEVELOPER_MODO_REFERENCIA.md`
 **Memory:** `/home/hans/.claude/projects/.../memory/feature_modo_referencia.md`
 
-## Running the Application
+## Directory Structure
+
+```
+TutorIAFisica/
+├── src/                          # Shared Python logic (agents, core, config)
+│   ├── app.py                    # Streamlit UI (legacy, offline mode)
+│   ├── core.py                   # Agent orchestration + PhysicsState
+│   ├── config.py                 # Model config, API key handling
+│   ├── agents/                   # (Reserved for future agent modules)
+│   ├── models/student_model.py   # SM-2 spaced repetition tracking
+│   └── utils/pcloud_manager.py   # Teacher materials from pCloud
+├── backend/                      # FastAPI application
+│   ├── main.py                   # FastAPI app + routes
+│   ├── routers/tutor.py          # /tutor/ask, /tutor/ask/stream, /tutor/feedback
+│   ├── schemas/                  # Pydantic request/response models
+│   ├── db/supabase_client.py     # Supabase PostgreSQL client
+│   └── requirements.txt          # Backend dependencies
+├── frontend/                     # Next.js application
+│   ├── src/app/                  # Next.js App Router
+│   ├── src/components/           # React components (ChatInterface, AgentPanel, VoiceInput)
+│   ├── src/lib/api.ts            # API client with SSE handling
+│   ├── package.json
+│   └── vercel.json               # Cloudflare Workers config
+├── data/                         # Knowledge base
+│   └── ufsm_syllabus.json        # UFSM physics syllabus + temas
+├── docs/                         # Documentation
+│   ├── DEVELOPER_SETUP.md        # Step-by-step environment setup
+│   ├── DEVELOPER_MODO_REFERENCIA.md
+│   ├── ARCHITECTURE.md
+│   ├── DEPLOY_VERCEL.md
+│   └── SOURCE_PIPELINE.md
+├── test_*.py                     # Integration & unit tests
+├── .env                          # API keys (local, not committed)
+├── vercel.json                   # Root Vercel config (monorepo paths)
+├── DEVLOG.md                     # Development history
+└── CLAUDE.md                     # This file
+```
+
+## Development Commands
+
+### Python Environment Setup
 
 ```bash
-# Activate virtual environment
+# Create virtual environment (one-time)
+python3.11 -m venv venv
 source venv/bin/activate
 
-# Ensure .env exists with API keys (see README for keys needed)
-cat > .env << EOF
-GEMINI_API_KEY=your_key
-OPENAI_API_KEY=your_key
-ANTHROPIC_API_KEY=your_key
-# ... other keys
-EOF
+# Install shared dependencies
+pip install -r requirements.txt
+```
 
-# Run the Streamlit app
+### Running Components
+
+**Backend (FastAPI on http://localhost:8000):**
+```bash
+source venv/bin/activate
+cd backend
+python main.py
+# or with auto-reload: uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Frontend (Next.js on http://localhost:3000):**
+```bash
+cd frontend
+npm install   # one-time
+npm run dev
+```
+
+**Streamlit (Legacy, Offline Mode on http://localhost:8501):**
+```bash
+source venv/bin/activate
 cd src
 streamlit run app.py
 ```
 
-The app starts on `http://localhost:8501` by default.
+### Running Tests
 
-## Code Execution Context
+```bash
+source venv/bin/activate
+# Run all tests
+pytest test_*.py -v
 
-- **Working Directory**: When running `streamlit run app.py`, the working directory is `src/`, so imports like `from config import Config` work directly.
-- **Environment**: Uses `.env` file at project root (loaded via `python-dotenv`)
-- **Session State**: Streamlit's `st.session_state` persists model selection and runtime API keys within a session
+# Run specific test file
+pytest test_integration.py -v
+
+# Run with coverage
+pytest test_*.py --cov=src --cov-report=html
+```
+
+### Linting & Type Checking
+
+```bash
+# Python (from root)
+pylint src/ backend/
+
+# Frontend (from frontend/)
+cd frontend && npm run lint
+```
+
+## Environment Setup
+
+### `.env` File (Project Root)
+
+Create a `.env` file with these variables (required for both backend and Streamlit):
+
+```bash
+# LiteLLM Multi-Provider Keys
+GEMINI_API_KEY=xxx
+OPENAI_API_KEY=xxx
+ANTHROPIC_API_KEY=xxx
+DEEPSEEK_API_KEY=xxx
+PERPLEXITY_API_KEY=xxx
+
+# Supabase (for StudentModel persistence)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+
+# Backend/Frontend
+NEXT_PUBLIC_API_URL=http://localhost:8000  # dev; use production URL in Vercel
+```
+
+### Code Execution Context
+
+- **Backend**: FastAPI reads `.env` from project root via `python-dotenv`
+- **Frontend**: Next.js reads `.env.local` and `vercel.json` environment variables; frontend env vars must be prefixed `NEXT_PUBLIC_`
+- **Streamlit**: Reads `.env` from project root; working directory is `src/` when running `streamlit run app.py`
+
+## Database & StudentModel (Spaced Repetition)
+
+### Supabase Setup
+
+TutorIAFisica uses **Supabase (PostgreSQL)** for:
+- Persistent StudentModel storage (SM-2 algorithm state)
+- Session history and progress tracking
+- User authentication (future: Supabase Auth)
+
+**Required Tables** (auto-created by migration or manual setup):
+
+```sql
+-- Students table
+CREATE TABLE students (
+  id BIGSERIAL PRIMARY KEY,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  session_count INT DEFAULT 0,
+  total_score FLOAT DEFAULT 0.0
+);
+
+-- Student responses (for SM-2 tracking)
+CREATE TABLE student_responses (
+  id BIGSERIAL PRIMARY KEY,
+  student_id BIGINT REFERENCES students(id),
+  question_text TEXT,
+  response_text TEXT,
+  difficulty FLOAT DEFAULT 2.5,
+  last_review TIMESTAMP,
+  next_review TIMESTAMP,
+  ease_factor FLOAT DEFAULT 2.5,
+  interval INT DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**Connection** (in `backend/db/supabase_client.py`):
+- Uses `SUPABASE_URL` and `SUPABASE_KEY` from `.env`
+- StudentModel methods read/write review state to `student_responses` table
+- Cron job (Supabase scheduled function) triggers SM-2 calculations periodically
+
+**Spaced Repetition Algorithm (SM-2):**
+- Formula: `interval = interval * ease_factor` (if correct), `interval = 1` (if incorrect)
+- Ease Factor: `ease = max(1.3, ease + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02)))`
+- Implemented in `StudentModel.process_response(grade)` where `grade` is 0-5
+
+### StudentModel API
+
+Located in `src/models/student_model.py`:
+
+```python
+class StudentModel:
+    def __init__(self, student_id: int, supabase_client)
+    
+    # Load persisted state from Supabase
+    def load(self) -> None
+    
+    # Calculate next review date for a question
+    def get_next_review(self, question_id: str) -> datetime
+    
+    # Process response (0-5 grade) and update SM-2 state
+    def process_response(self, question_id: str, grade: int) -> dict
+    
+    # Get difficulty estimate for question
+    def get_difficulty(self, question_id: str) -> float
+    
+    # Persist current state back to Supabase
+    def save(self) -> None
+```
+
+**Usage in Backend:**
+```python
+# In /tutor/feedback endpoint
+student_model = StudentModel(student_id=123, supabase_client=supabase)
+student_model.load()
+result = student_model.process_response(question_id="q123", grade=4)
+student_model.save()
+```
+
+**Important:** Modo Referência does NOT increment `session_count` or interact with StudentModel (it's offline-only learning).
+
+## Deployment
+
+### Frontend (Cloudflare Workers via Vercel)
+
+**Live:** https://tutoriafisica.hans-059.workers.dev
+
+**Deploy Process:**
+1. Vercel reads `vercel.json` at root (specifies `frontend/` as build directory)
+2. Runs `cd frontend && npm run build` and outputs to `frontend/.next`
+3. Cloudflare Workers integration auto-deploys built assets
+
+**Environment Variables** (set in Vercel UI or via `vercel env`):
+```
+NEXT_PUBLIC_API_URL = https://tutor-ia-fisica-api.onrender.com
+```
+
+**Deployment Checklist:**
+- [ ] `NEXT_PUBLIC_API_URL` points to backend URL
+- [ ] Backend CORS allows Cloudflare domain
+- [ ] `frontend/vercel.json` has correct `buildCommand` and `outputDirectory`
+- [ ] All dependencies installed in `frontend/package.json`
+
+### Backend (Render.com)
+
+**Live:** https://tutor-ia-fisica-api.onrender.com
+
+**Deploy Process:**
+1. Render.com reads `render.yaml` at root
+2. Builds Python environment, installs `backend/requirements.txt`
+3. Starts FastAPI server on exposed port
+
+**render.yaml** example:
+```yaml
+services:
+  - type: web
+    name: tutor-ia-fisica-api
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: SUPABASE_URL
+        scope: build,run
+      - key: SUPABASE_KEY
+        scope: build,run
+```
+
+**Environment Variables** (set in Render dashboard):
+```
+SUPABASE_URL = https://xxx.supabase.co
+SUPABASE_KEY = ey...
+GEMINI_API_KEY = xxx
+OPENAI_API_KEY = xxx
+# ... all API keys from .env
+```
+
+**Database Cron Job** (Supabase Edge Function):
+- Scheduled: every 5 days at 12:00 UTC (`0 12 */5 * *`)
+- Purpose: Recalculate SM-2 review intervals for all students
+- Code: in `SUPABASE_CRON_SETUP.md`
+
+### Streamlit (Local Only)
+
+Streamlit is not deployed. It runs locally for:
+- Offline learning (Modo Referência)
+- Development/testing
+- Fallback if backend is down
 
 ## Extending the System
 
@@ -140,6 +449,9 @@ The app starts on `http://localhost:8501` by default.
 - **LiteLLM Errors**: Catch `RateLimitError`, `AuthenticationError`, and `APIError` for fallback logic. Other exceptions are unrecoverable.
 - **Multimodal Images**: Always check `Config.is_model_multimodal()` before including images in the message. Base64 encoding is handled by `TutorIAAgent.ask()`.
 - **API Keys**: Never hardcode API keys. Always read from `.env` first, then offer runtime input via Streamlit UI for missing keys.
+- **SSE Streaming**: Backend sends agent output line-by-line via `process_streaming()`. Frontend subscribes with `EventSource` and updates UI progressively. Do not buffer full response before sending.
+- **CORS**: Backend must allow frontend origin (Cloudflare Workers domain). Check `origins` in FastAPI `CORSMiddleware`.
+- **Supabase Connection**: Always load StudentModel state before processing feedback. Call `.save()` after updates. Handle connection failures gracefully (log, don't crash endpoint).
 
 ## Debugging Tips
 
