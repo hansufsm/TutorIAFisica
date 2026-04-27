@@ -30,6 +30,9 @@ Histórico de desenvolvimento, organized by session and major milestones.
 ### Próximo Passo
 Testar dev server (`npm run dev`) e verificar conexão real com backend `/tutor/ask/stream`.
 
+### Referências
+- [Como falar com o Claude Code efetivamente — "O falso problema"](https://akitaonrails.com/2026/04/15/como-falar-com-o-claude-code-efetivamente/#o-falso-problema) — Padrão de comunicação efetiva com Claude Code
+
 ---
 
 ## 📅 2026-04-27 — Phase 3 Polish Complete
