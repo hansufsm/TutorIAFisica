@@ -103,15 +103,35 @@ Testar dev server (`npm run dev`) e verificar conexão real com backend `/tutor/
 
 ---
 
+## 📅 2026-04-27 — Migrate Frontend: Cloudflare → Vercel (com cron job nativo)
+
+**Commit:** `8af1afe`
+
+### O que foi feito
+- ✅ Removido `@opennextjs/cloudflare` (adapter específico para Workers)
+- ✅ Removido `wrangler.jsonc` e `open-next.config.ts`
+- ✅ Simplificado `next.config.js` (sem standalone output)
+- ✅ Criado `frontend/vercel.json` com cron schedule: `0 12 */5 * *` (a cada 5 dias ao meio-dia UTC)
+- ✅ Criado `frontend/src/app/api/keepalive/route.ts` — API route chamada pelo cron
+- ✅ Build Next.js passa sem erros (rota `/api/keepalive` como server-side dynamic)
+
+### Por quê mudou
+Cron-job.org falhou com 401/400 (problemas de autenticação). Vercel tem cron jobs **nativos** via `vercel.json` que chamam rotas de API internas — mais confiável e sem serviços externos.
+
+### Status
+🟡 **CÓDIGO PRONTO** — Frontend migrado, aguardando deploy manual no Vercel
+
+---
+
 ## 🎯 Próximas Prioridades
 
 | Item | Esforço | Impacto | Status |
 |---|---|---|---|
-| **Configurar cron job Supabase** | 5 min | 🔴 **CRÍTICO** | ⏳ |
+| **Deploy frontend no Vercel** | 10 min (manual) | 🔴 **CRÍTICO** | ⏳ |
+| Testar cron job após deploy | 5 min | Alto | ⏳ |
 | Testar SSE streaming em produção | 10 min | Alto | ⏳ |
 | Misconception detection | 1h | Médio | ⏳ |
 | StudentModel local ↔ Supabase unificação | 2h | Médio | ⏳ |
-| pgvector semantic search | 3h | Baixo/Futuro | ⏳ |
 
 ---
 
