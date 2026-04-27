@@ -32,6 +32,7 @@ Testar dev server (`npm run dev`) e verificar conexão real com backend `/tutor/
 
 ### Referências
 - [Como falar com o Claude Code efetivamente — "O falso problema"](https://akitaonrails.com/2026/04/15/como-falar-com-o-claude-code-efetivamente/#o-falso-problema) — Padrão de comunicação efetiva com Claude Code
+- [Sobre minha experiência criando algo 100% com IA](https://www.tabnews.com.br/DeividSouSan/sobre-minha-experiencia-criando-algo-100-por-cento-com-ia) — Case study de desenvolvimento com IA
 
 ---
 
