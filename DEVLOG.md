@@ -4,6 +4,46 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — TODOs Alta + Média Prioridade + Fix Seletor de Modelos
+
+**Commits:** `19cbaf6` · `f42ac10` · `8290aa2`
+
+### O que foi feito
+
+#### Itens de Alta Prioridade
+- ✅ **Bug `result` undefined no streaming** — `model_used` e `fallback` agora lidos de `state` (sempre presente) em vez de `result` (inexistente no caminho `process_streaming`)
+- ✅ **Migration 003 aplicada em produção** — coluna `response_time_ms INT` no Supabase verificada com insert/delete de teste
+- ✅ **Misconception detection** — `data/misconceptions.json` com 18 erros clássicos de física em 5 domínios UFSM; `src/utils/misconception_detector.py` com pattern matching; Intérprete recebe bloco de contexto de misconceptions detectadas na pergunta
+- ✅ **Avaliador consulta StudentModel** — `due_concepts` buscados antes do pipeline em `tutor.py`; Avaliador prioriza conceitos SM-2 vencidos e misconceptions detectadas no desafio socrático
+
+#### Itens de Média Prioridade
+- ✅ **Eliminação de duplicação `process()` / `process_streaming()`** — `process()` reduzido de ~70 linhas para 4: delega inteiramente ao `process_streaming()`, garantindo que ambos os caminhos compartilhem a mesma lógica (incluindo misconceptions e due_concepts)
+- ✅ **`PROJECT_STATUS.md` atualizado** — Etapa 4 marcada como ✅ Completo, TODOs reorganizados por prioridade real, commits recentes adicionados
+
+#### Fix: Manus não aparecia no seletor de modelos
+- **Causa:** `MODELS` era array hardcoded `["DeepSeek Chat", "Gemini 2.0 Flash"]` no `ChatInterface.tsx`
+- **Correção:** Frontend agora chama `GET /models` ao montar — retorna `Config.AVAILABLE_MODELS` do backend dinamicamente; fallback para lista original se backend indisponível
+- **Benefício:** qualquer modelo adicionado ao `config.py` aparece automaticamente no seletor sem tocar no frontend
+
+### Arquivos modificados
+- `backend/routers/tutor.py` — bug fix `result`, fetch `due_concepts` antes do pipeline
+- `src/core.py` — `process()` delega a `process_streaming()`, campos `due_concepts` + `detected_misconceptions` em `PhysicsState`, integração misconceptions no Intérprete e Avaliador
+- `src/utils/misconception_detector.py` — novo arquivo
+- `data/misconceptions.json` — novo arquivo (18 misconceptions, 5 domínios)
+- `docs/PROJECT_STATUS.md` — atualizado
+- `frontend/lib/api.ts` — nova função `fetchModels()`
+- `frontend/components/ChatInterface.tsx` — `models` como estado dinâmico
+
+### Garantia de isolamento do Manus
+O Manus só é chamado quando explicitamente selecionado no seletor. Duas proteções no código:
+1. Bypass route só ativa se `selected_model_display_name == "Manus"`
+2. Loop de fallback tem `model_name != "Manus"` explícito — DeepSeek e Gemini falham sem acionar Manus
+
+### Status
+🟢 **COMPLETO** — build TypeScript limpo, migration verificada, push efetuado
+
+---
+
 ## 📅 2026-04-27 — Integração Manus.im como Provedor (Bypass Route)
 
 ### O que foi feito
