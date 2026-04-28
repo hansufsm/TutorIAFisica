@@ -153,6 +153,15 @@ export function ChatInterface() {
     );
   }
 
+  // Infer the active pipeline node from order position.
+  // streamingAgent and agents are batched in the same React update, so by the time
+  // the component renders both are already true — isActive and isDone would collide.
+  // Instead: the "active" agent is the first one in AGENTS_ORDER not yet in `agents`.
+  const completedAgentNames = new Set(agents.map((a) => a.agent_name));
+  const pipelineActive = loading
+    ? (AGENTS_ORDER.find((n) => !completedAgentNames.has(n)) ?? null)
+    : null;
+
   return (
     <div className="flex h-screen" style={{ background: "var(--bg-main)" }}>
 
@@ -283,10 +292,10 @@ export function ChatInterface() {
                         <div className="flex items-center gap-2.5 mb-5">
                           <div className="w-3 h-3 rounded-full border-2 border-stone-200 border-t-indigo-500 animate-spin flex-shrink-0" />
                           <p className="text-sm text-stone-600 flex-1">
-                            {streamingAgent ? (
+                            {pipelineActive ? (
                               <>
-                                <span className={`font-semibold ${AGENT_PIPELINE_STYLES[streamingAgent]?.text ?? "text-stone-800"}`}>
-                                  {AGENT_COLORS[streamingAgent]?.icon} {streamingAgent}
+                                <span className={`font-semibold ${AGENT_PIPELINE_STYLES[pipelineActive]?.text ?? "text-stone-800"}`}>
+                                  {AGENT_COLORS[pipelineActive]?.icon} {pipelineActive}
                                 </span>
                                 {" "}está processando…
                               </>
@@ -334,7 +343,7 @@ export function ChatInterface() {
                         const ps = AGENT_PIPELINE_STYLES[agentName];
                         const ac = AGENT_COLORS[agentName];
                         const isDone = agents.some((a) => a.agent_name === agentName);
-                        const isActive = streamingAgent === agentName;
+                        const isActive = pipelineActive === agentName;
                         return (
                           <div key={agentName} className="flex items-center flex-1">
                             {/* Node */}
