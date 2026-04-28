@@ -92,6 +92,17 @@ export async function askTutorStream(
   }
 }
 
+export async function fetchModels(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API}/models`);
+    if (!res.ok) throw new Error();
+    const data: Record<string, unknown> = await res.json();
+    return Object.keys(data);
+  } catch {
+    return ["DeepSeek Chat", "Gemini 2.0 Flash"];
+  }
+}
+
 export async function getStudentProgress(email: string) {
   const res = await fetch(`${API}/student/${encodeURIComponent(email)}/progress`);
   if (!res.ok) throw new Error(`Failed to fetch progress: ${res.status}`);

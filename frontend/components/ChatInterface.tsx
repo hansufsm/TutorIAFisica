@@ -2,10 +2,10 @@
 import { useState, useRef, useEffect } from "react";
 import { AgentPanel } from "./AgentPanel";
 import { VoiceInput } from "./VoiceInput";
-import { askTutorStream, AgentOutput, DueReview } from "@/lib/api";
+import { askTutorStream, fetchModels, AgentOutput, DueReview } from "@/lib/api";
 import { Plus, MessageSquare, BookOpen, Settings, Send, ChevronDown } from "lucide-react";
 
-const MODELS = ["DeepSeek Chat", "Gemini 2.0 Flash"];
+const MODELS_FALLBACK = ["DeepSeek Chat", "Gemini 2.0 Flash"];
 
 const AGENT_COLORS: Record<string, { icon: string; dotColor: string; activePill: string }> = {
   "Intérprete":   { icon: "🔵", dotColor: "bg-indigo-400",  activePill: "bg-indigo-600" },
@@ -30,7 +30,8 @@ export function ChatInterface() {
   const [streamingAgent, setStreamingAgent] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [model, setModel] = useState(MODELS[0]);
+  const [models, setModels] = useState<string[]>(MODELS_FALLBACK);
+  const [model, setModel] = useState(MODELS_FALLBACK[0]);
   const [due, setDue] = useState<DueReview[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
@@ -41,6 +42,15 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const startTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    fetchModels().then((list) => {
+      if (list.length > 0) {
+        setModels(list);
+        setModel(list[0]);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -172,7 +182,7 @@ export function ChatInterface() {
               className="w-full text-sm appearance-none pr-7 py-2 px-3 rounded-lg border text-stone-800 bg-white"
               style={{ borderColor: "var(--border)" }}
             >
-              {MODELS.map((m) => (
+              {models.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
