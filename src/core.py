@@ -3,6 +3,7 @@ import json
 import time
 import base64
 import io
+import requests as http_requests
 import litellm
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
@@ -185,11 +186,56 @@ class TutorIAAgent:
         self.name = name
         self.system_instruction = system_instruction
 
+    def _ask_manus(self, prompt: str, context: str = "", api_key: str = None) -> str:
+        """Bypass route para o Manus: envia task assíncrona e faz polling até completar."""
+        _MANUS_BASE = "https://api.manus.im"
+        _MANUS_HEADERS = {"API_KEY": api_key or os.getenv("MANUS_API_KEY", "")}
+        _POLL_INTERVAL = 5   # segundos entre polls
+        _MAX_POLLS = 60      # timeout de 5 min
+
+        full_prompt = f"{self.system_instruction}\n\n{context}\n\n{prompt}".strip() if context.strip() else f"{self.system_instruction}\n\n{prompt}".strip()
+
+        resp = litellm.responses(
+            model="manus/manus-1.6",
+            api_key=api_key or os.getenv("MANUS_API_KEY", ""),
+            input=full_prompt,
+        )
+        task_id = resp.metadata.get("task_id", "")
+        if not task_id:
+            raise RuntimeError("Manus: task_id não encontrado na resposta inicial")
+
+        for _ in range(_MAX_POLLS):
+            time.sleep(_POLL_INTERVAL)
+            r = http_requests.get(
+                f"{_MANUS_BASE}/v1/responses/{task_id}",
+                headers=_MANUS_HEADERS,
+                timeout=15,
+            )
+            if r.status_code != 200:
+                raise RuntimeError(f"Manus polling error HTTP {r.status_code}: {r.text[:200]}")
+            data = r.json()
+            status = data.get("status")
+            if status == "completed":
+                # Extrai o texto do último output de assistente
+                for item in reversed(data.get("output", [])):
+                    if item.get("role") == "assistant":
+                        for c in reversed(item.get("content", [])):
+                            if c.get("type") == "output_text" and c.get("text"):
+                                return c["text"]
+                raise RuntimeError("Manus: resposta completed mas sem texto de assistente")
+            if status == "failed":
+                raise RuntimeError(f"Manus: task falhou — {data.get('error', 'sem detalhes')}")
+
+        raise RuntimeError("Manus: timeout após 5 minutos de polling")
+
     def ask(self, prompt: str, context: str = "", image: Any = None, model_id: str = None, api_key: str = None) -> str:
         """Realiza a chamada para o LLM usando LiteLLM com o modelo especificado."""
         if not model_id:
             model_id = Config.get_model_id(Config.DEFAULT_MODEL_DISPLAY_NAME)
             print(f"Aviso: Nenhum model_id especificado, usando padrão {model_id}")
+
+        if model_id and model_id.startswith("manus/"):
+            return self._ask_manus(prompt, context=context, api_key=api_key)
 
         context_block = f"\n\n### MATERIAL DE REFERÊNCIA (use prioritariamente):\n{context}" if context.strip() else ""
         messages = [
@@ -240,17 +286,29 @@ class PhysicsOrchestrator:
         }
 
     def _attempt_model_call(self, agent_name: str, prompt: str, context: str, image: Any = None) -> tuple[str, Optional[str], bool]:
-        """Tenta chamar modelos na ordem de preferência, implementando fallback automático."""
+        """Tenta chamar modelos na ordem de preferência, implementando fallback automático.
+        Exceção: quando o modelo selecionado é Manus, executa bypass direto sem fallback.
+        """
+        # Bypass route: Manus é assíncrono e não entra no loop de fallback
+        if self.selected_model_display_name == "Manus":
+            api_key = os.getenv("MANUS_API_KEY", "")
+            try:
+                agent = self.agents[agent_name]
+                result = agent._ask_manus(prompt, context=context, api_key=api_key)
+                return result, "Manus", False
+            except Exception as e:
+                return f"Erro no Manus: {str(e)}", None, True
+
         models_to_try_display_names = Config.MODEL_PREFERENCE_ORDER
         last_error_message = "Nenhum modelo testado com sucesso."
-        
+
         # Determina a ordem de modelos a tentar, priorizando o selecionado pelo usuário
         preferred_order = []
         if self.selected_model_display_name and self.selected_model_display_name in Config.AVAILABLE_MODELS:
             preferred_order.append(self.selected_model_display_name)
-        
+
         for model_name in models_to_try_display_names:
-            if model_name not in preferred_order:
+            if model_name not in preferred_order and model_name != "Manus":
                 preferred_order.append(model_name)
 
         for model_display_name in preferred_order:

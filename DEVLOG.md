@@ -4,6 +4,35 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — Integração Manus.im como Provedor (Bypass Route)
+
+### O que foi feito
+- ✅ **Manus adicionado como provedor de LLM** (3° na ordem de fallback: DeepSeek → Gemini → Manus)
+- ✅ **Bypass route assíncrono** implementado em `TutorIAAgent._ask_manus()`:
+  - Manus usa `litellm.responses()` (não `completion()`), retorna `status='running'` inicialmente
+  - Polling via `GET https://api.manus.im/v1/responses/{task_id}` com header `API_KEY: ...`
+  - Extrai texto do último `output[].content[].text` com `role=assistant`
+  - Timeout: 5 min (60 polls × 5s)
+- ✅ **`_attempt_model_call()` com detecção de Manus**: quando `selected_model == "Manus"`, executa bypass direto sem entrar no loop de fallback
+- ✅ **Manus excluído do loop de fallback** dos outros modelos (não entra em `preferred_order` quando não está selecionado)
+- ✅ **Chave `MANUS_API_KEY`** adicionada ao `.env` e `config.py`
+
+### Arquivos modificados
+- `src/core.py` — `import requests`, `TutorIAAgent._ask_manus()`, bypass em `_attempt_model_call()`
+- `src/config.py` — `MANUS_API_KEY`, `"Manus"` em `AVAILABLE_MODELS`, `get_provider_key_name()`, `MODEL_PREFERENCE_ORDER`
+- `.env` — `MANUS_API_KEY=sk-...`
+
+### Decisões técnicas
+- Manus é um agente autônomo assíncrono, não um chat completion — precisa de rota separada
+- `litellm.responses.retrieve()` não existe na versão instalada; polling via HTTP direto resolveu
+- Header de autenticação é `API_KEY: ...` (não `Authorization: Bearer ...`)
+- Falha do Manus retorna erro descritivo sem fallback automático (comportamento esperado no bypass)
+
+### Status
+🟢 **COMPLETO E TESTADO** — `_ask_manus()` e `_attempt_model_call()` validados com respostas reais
+
+---
+
 ## 📅 2026-04-27 — LaTeX Fix + Response Time + Export Features
 
 **Commit:** `6d9a049`

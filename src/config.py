@@ -11,7 +11,8 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
     PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
-    XAI_API_KEY = os.getenv("XAI_API_KEY") 
+    XAI_API_KEY = os.getenv("XAI_API_KEY")
+    MANUS_API_KEY = os.getenv("MANUS_API_KEY")
 
     # Endpoints pCloud (mantidos para referência)
     PCLOUD_API_URL = "https://eapi.pcloud.com"
@@ -22,6 +23,7 @@ class Config:
     AVAILABLE_MODELS = {
         "DeepSeek Chat": {"id": "deepseek/deepseek-chat", "multimodal": False},
         "Gemini 2.0 Flash": {"id": "gemini/gemini-2.0-flash", "multimodal": True},
+        "Manus": {"id": "manus/manus-1.6", "multimodal": False},
 
         # Modelos para implementação futura:
         # "Grok 2 Vision": {"id": "xai/grok-2-vision-1212", "multimodal": True},
@@ -38,6 +40,7 @@ class Config:
     MODEL_PREFERENCE_ORDER = [
         "DeepSeek Chat",
         "Gemini 2.0 Flash",
+        "Manus",
     ]
 
     DEFAULT_MODEL_DISPLAY_NAME = "DeepSeek Chat"
@@ -60,6 +63,7 @@ class Config:
         if provider == "anthropic": return "ANTHROPIC_API_KEY"
         if provider == "perplexity": return "PERPLEXITY_API_KEY"
         if provider == "xai": return "XAI_API_KEY"
+        if provider == "manus": return "MANUS_API_KEY"
         if provider == "local": return None
         return f"{provider.upper()}_API_KEY"
 
