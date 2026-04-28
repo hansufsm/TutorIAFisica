@@ -4,9 +4,60 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-04-27 — LaTeX Fix + Response Time + Export Features
+
+**Commit:** `6d9a049`
+
+### O que foi feito
+- ✅ **LaTeX display math fix**:
+  - Corrigido `normalizeLatex()` em `AgentPanel.tsx` com regex groups: `\[([\s\S]*?)\]` → `$$\n${content}\n$$`
+  - Problema: substituição simples deixava `$$` sozinho quando DeepSeek quebrava equação em múltiplas linhas
+  - Solução: capturar conteúdo completo com `([\s\S]*?)` e reenvolver preservando limpeza (trim)
+  - Resultado: display math como `\[E = mc^2\]` agora renderiza corretamente
+
+- ✅ **Response time tracking**:
+  - Frontend: `startTimeRef` gravado em `confirmAndSubmit()`, calculado em `onDone`
+  - Display: badge "⏱ X.Xs" na linha das tabs (alinhado à direita com `ml-auto`)
+  - Backend: `import time`, `t0 = time.monotonic()` no início de streaming
+  - DB: nova coluna `response_time_ms INT` em `session_log` (migration 003)
+  - SSE: evento final inclui `response_time_ms` no payload JSON
+  - Persiste no banco para analytics futuro
+
+- ✅ **Export functionality**:
+  - **Markdown**: botão "📄 .md" cria blob com `question + agents`, abre download
+  - **PDF**: botão "🖨️ PDF" dispara `window.print()` com print CSS customizado
+  - Print CSS: `@media print` oculta sidebar/header/input, mostra só conteúdo
+  - `print-content` class adicionada a `AgentPanel` para quebra de página correta
+  - Botões aparecem na linha das tabs ao lado do response time badge
+
+### Arquivos Modificados
+- `frontend/components/AgentPanel.tsx` — fixed normalizeLatex regex, added print-content class
+- `frontend/components/ChatInterface.tsx` — startTimeRef, responseTime state, export funcs, badge display
+- `frontend/lib/api.ts` — onDone callback accepts responseTimeMs param
+- `backend/routers/tutor.py` — added time import, t0 = time.monotonic(), response_time_ms calculation
+- `backend/db/student_model.py` — log_session accepts response_time_ms kwarg
+- `frontend/app/globals.css` — added @media print styles
+- `supabase/migrations/003_response_time.sql` — ALTER TABLE session_log ADD response_time_ms
+
+### Por que foi necessário
+- Equações display math não renderizavam quando LLM quebrava a linha dentro do delimitador
+- Usuário pediu feedback visual sobre tempo gasto na requisição
+- Usuário pediu funcionalidade de exportar respostas para revisão offline
+
+### Status
+🟢 **COMPLETO** — Build sem erros, dev server rodando, pushed ao GitHub commit `6d9a049`
+
+### Próximos Passos
+1. Teste manual: enviar pergunta com equação display, verificar renderização
+2. Verificar badge de tempo aparece após resposta completa
+3. Testar downloads .md e print PDF no navegador
+4. Verificar migrations aplicadas no Supabase dashboard
+
+---
+
 ## 📅 2026-04-27 — Frontend UX Improvements: Tabbed Agents + Light Theme + KaTeX Fix
 
-**Commits:** `[pending git commit]`
+**Commits:** `[merged em 6d9a049]`
 
 ### O que foi feito
 - ✅ **Abas por Agente (Pill Design)**:
