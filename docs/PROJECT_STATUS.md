@@ -120,26 +120,29 @@ Aluno → Cloudflare Workers (Next.js)
 
 ---
 
-### 🟡 Etapa 4 — Frontend Next.js
-**Status:** Parcial — estrutura criada, componentes simplificados  
+### ✅ Etapa 4 — Frontend Next.js
+**Status:** Completo  
 **Data:** 2026-04-27  
-**Commits:** `3004730`, `26b341b`, `2b5cd38`
+**Commits:** `3004730`, `26b341b`, `2b5cd38`, `efea2e2`, `2f1a00e`, `6d9a049`
 
 | Item | Previsto no STACK_FUTURO | Status atual |
 |---|---|---|
 | Next.js inicializado em `frontend/` | ✅ | ✅ |
-| `frontend/src/app/page.tsx` | ✅ | ✅ |
-| `frontend/src/app/layout.tsx` | ✅ | ✅ |
-| `frontend/src/lib/api.ts` | ✅ | ⏳ **PENDENTE** |
-| `frontend/src/components/ChatInterface.tsx` | ✅ | ⏳ **PENDENTE** |
-| `frontend/src/components/AgentPanel.tsx` | ✅ | ⏳ **PENDENTE** |
-| `frontend/src/components/VoiceInput.tsx` | ✅ | ⏳ **PENDENTE** |
-| `frontend/src/components/ProgressMap.tsx` | ✅ | ⏳ **PENDENTE** |
-| SSE streaming (agentes progressivos) | ✅ | ⏳ **PENDENTE** |
-| KaTeX para renderização de LaTeX | ✅ | ⏳ **PENDENTE** |
-| Seletor de modelo no UI | ✅ | ⏳ **PENDENTE** |
-
-> ⚠️ **Situação atual:** O frontend mostra a interface básica (Cloudflare Workers), mas os componentes específicos da arquitetura planejada (`ChatInterface`, `AgentPanel`, etc.) ainda não foram implementados. A página atual provavelmente exibe o `page.tsx` mínimo criado para o deploy.
+| `frontend/app/page.tsx` | ✅ | ✅ |
+| `frontend/app/layout.tsx` | ✅ | ✅ |
+| `frontend/lib/api.ts` | ✅ | ✅ |
+| `frontend/components/ChatInterface.tsx` | ✅ | ✅ |
+| `frontend/components/AgentPanel.tsx` | ✅ | ✅ |
+| `frontend/components/VoiceInput.tsx` | ✅ | ✅ |
+| `frontend/components/ProgressMap.tsx` | ✅ | ⏳ Não implementado |
+| SSE streaming (agentes progressivos) | ✅ | ✅ |
+| KaTeX para renderização de LaTeX | ✅ | ✅ |
+| Seletor de modelo no UI | ✅ | ✅ |
+| Dark → Light theme + glassmorphism | ⚡ Não previsto | ✅ |
+| Sidebar toggle (colapsável) | ⚡ Não previsto | ✅ |
+| Export Markdown + Print PDF | ⚡ Não previsto | ✅ |
+| Badge de tempo de resposta (⏱) | ⚡ Não previsto | ✅ |
+| Broken link reporting por agente | ⚡ Não previsto | ✅ |
 
 ---
 
@@ -283,22 +286,23 @@ Desenvolvidas por necessidade pedagógica ou correção de UX durante o projeto.
 
 ## O Que Ainda Falta ⏳
 
-### Prioridade Alta
+### Prioridade Alta — ✅ Todos concluídos (2026-04-27)
 
-| Item | De onde vem | Por quê | Esforço estimado |
-|---|---|---|---|
-| **Google OAuth login + student profiles** | Futuro planejado | Persistir nickname + histórico de sessões por email (atualmente hardcoded "aluno@ufsm.br") | ~2h |
-| **Cron job keep-alive Supabase** | Etapa 0 | Banco pausa após 7 dias — perda de dados | 5min |
-| **Aplicar migration 003** no Supabase produção | Infra | Coluna `response_time_ms` não existe em prod ainda | 2min |
+| Item | Status |
+|---|---|
+| Bug `result` undefined no streaming | ✅ Corrigido — `state.used_model_display_name` |
+| Migration 003 (`response_time_ms`) em produção | ✅ Aplicada e verificada |
+| Misconception detection | ✅ `data/misconceptions.json` + `MisconceptionDetector` |
+| Avaliador consultar StudentModel (due concepts) | ✅ `due_concepts` passados antes do pipeline |
 
 ### Prioridade Média
 
 | Item | De onde vem | Por quê | Esforço estimado |
 |---|---|---|---|
-| **Spinner "acordando servidor"** | Nota do STACK_FUTURO | Render cold start (~30s) parece bug ao usuário | ~20min |
-| **Misconception detection** | Arquitetura Supabase | Tabela criada mas nunca populada | ~1h |
-| **`/student/{email}/progress` no frontend** | STACK_FUTURO | Endpoint existe, frontend não usa | ~30min |
-| **Integração StudentModel local → Supabase** | Necessidade de unificação | JSON local e Supabase são paralelos; migrar para Supabase unifica | ~2h |
+| **Cron job keep-alive Supabase** | Etapa 0 | Banco pausa após inatividade — perda de dados | 5min (manual) |
+| **`ProgressMap` component** | STACK_FUTURO | Componente de mapa de progresso nunca implementado | ~1h |
+| **Google OAuth login + student profiles** | Futuro planejado | Persistir histórico por email (atualmente hardcoded) | ~2h |
+| **Dashboard do professor** | roadmap-pedagogico.md | Agregado de perguntas e misconceptions da turma | ~3h |
 
 ### Prioridade Baixa / Futuro
 
@@ -344,6 +348,10 @@ Desenvolvidas por necessidade pedagógica ou correção de UX durante o projeto.
   1ef44c8  design: Redesign with Manus-style layout
   6d9a049  feat: LaTeX fix + response time + export (3 features)
   523d550  docs: Register LaTeX + time + export session in DEVLOG
+  3beeb19  docs: Update DEVLOG and PROJECT_STATUS
+  16d8369  feat: Add Manus.im as async LLM provider with bypass route
+  19cbaf6  feat: Misconception detection + StudentModel integration in Avaliador
+  (wip)    refactor: Eliminate process() duplication + PROJECT_STATUS update
 ```
 
 ---
