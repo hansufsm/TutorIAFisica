@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from config import Config
 from utils.pcloud_manager import PCloudManager
 from utils.web_searcher import WebSearcher
+from utils.misconception_detector import MisconceptionDetector
 
 load_dotenv()
 
@@ -47,6 +48,10 @@ class PhysicsState:
         # Informações de fallback e modelo utilizado
         self.used_model_display_name: Optional[str] = None
         self.fallback_occurred: bool = False
+
+        # Pedagogy: misconceptions detectadas e conceitos SM-2 vencidos
+        self.detected_misconceptions: list = []
+        self.due_concepts: list = []
 
     @property
     def teacher_notes(self) -> str:
@@ -539,9 +544,13 @@ class PhysicsOrchestrator:
         input_data = state.raw_input
         state.sync_external_data()
 
-        # Intérprete
+        # Intérprete — detecta misconceptions e injeta no contexto
         context = state.build_context() or ""
-        response, model_name_used, fb = self._attempt_model_call("interpreter", input_data, context, state.image_input)
+        state.detected_misconceptions = MisconceptionDetector.check(input_data)
+        mc_block = MisconceptionDetector.build_context_block(state.detected_misconceptions)
+        response, model_name_used, fb = self._attempt_model_call(
+            "interpreter", input_data, context + ("\n\n" + mc_block if mc_block else ""), state.image_input
+        )
         state.pergunta_socratica = response
         if "," in response:
             state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
@@ -578,8 +587,17 @@ class PhysicsOrchestrator:
         yield ("Curador", response)
         time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
-        # Avaliador
-        response, model_name_used, fb = self._attempt_model_call("evaluator", input_data, context, state.image_input)
+        # Avaliador — prioriza conceitos SM-2 vencidos e misconceptions detectadas
+        evaluator_context = context
+        if state.due_concepts:
+            topics = ", ".join(
+                c.get("topic") or c.get("concept_id", "") for c in state.due_concepts[:3]
+            )
+            evaluator_context += f"\n\n### [CONCEITOS EM ATRASO DE REVISÃO — priorize estes no desafio]\n{topics}"
+        if state.detected_misconceptions:
+            mc_block = MisconceptionDetector.build_context_block(state.detected_misconceptions)
+            evaluator_context += f"\n\n{mc_block}"
+        response, model_name_used, fb = self._attempt_model_call("evaluator", input_data, evaluator_context, state.image_input)
         state.quiz_question = response
         if fb: state.fallback_occurred = True
         if model_name_used: state.used_model_display_name = model_name_used

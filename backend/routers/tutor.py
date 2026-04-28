@@ -97,6 +97,10 @@ async def ask_tutor_stream(req: TutorRequest):
     student = get_or_create_student(req.student_email, req.student_name)
     state, model_id, api_key = _build_state(req)
 
+    # Busca conceitos SM-2 vencidos antes do pipeline para o Avaliador usá-los
+    due_before = get_concepts_due_for_review(student["id"])
+    state.due_concepts = due_before[:5]
+
     async def generate():
         t0 = time.monotonic()
         orchestrator = PhysicsOrchestrator()
@@ -135,17 +139,16 @@ async def ask_tutor_stream(req: TutorRequest):
                     yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
         response_time_ms = int((time.monotonic() - t0) * 1000)
-        due = get_concepts_due_for_review(student["id"])
         session_id = log_session(
             student_id=student["id"],
             question=req.question,
             topic=getattr(state, "domain", ""),
-            model_used=result.used_model_display_name if 'result' in locals() else req.model_name,
-            fallback=result.fallback_occurred if 'result' in locals() else False,
+            model_used=state.used_model_display_name or req.model_name,
+            fallback=state.fallback_occurred or False,
             agents_output=agents_dict,
             response_time_ms=response_time_ms,
         )
-        yield f"data: {json.dumps({'is_final': True, 'due_for_review': due[:3], 'session_id': session_id, 'response_time_ms': response_time_ms})}\n\n"
+        yield f"data: {json.dumps({'is_final': True, 'due_for_review': due_before[:3], 'session_id': session_id, 'response_time_ms': response_time_ms})}\n\n"
 
     return StreamingResponse(
         generate(),

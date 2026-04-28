@@ -1,0 +1,126 @@
+{
+  "mecanica": [
+    {
+      "id": "mc_forca_velocidade",
+      "description": "Confundir força com velocidade constante — acreditar que é necessária força para manter o movimento",
+      "trigger_patterns": ["força mantém o movimento", "precisa de força para continuar", "força para andar", "força para se mover", "sem força para"],
+      "socratic_probe": "Se não houver força alguma sobre um objeto em movimento, o que acontece com ele segundo Newton?"
+    },
+    {
+      "id": "mc_peso_massa",
+      "description": "Usar peso e massa como sinônimos",
+      "trigger_patterns": ["meu peso é", "peso em kg", "peso em quilograma", "peso de 70", "peso de 80", "pesando em kg"],
+      "socratic_probe": "Qual seria seu peso na Lua? E sua massa seria diferente lá?"
+    },
+    {
+      "id": "mc_acao_reacao_diferente",
+      "description": "Acreditar que ação e reação são diferentes porque um objeto é maior ou mais pesado",
+      "trigger_patterns": ["o maior empurra mais", "o mais pesado empurra mais", "a força de ação é maior", "força diferente na reação"],
+      "socratic_probe": "Quando um caminhão colide com uma bicicleta, a força que o caminhão exerce na bicicleta é maior, menor ou igual à que a bicicleta exerce no caminhão?"
+    },
+    {
+      "id": "mc_queda_massa",
+      "description": "Acreditar que objetos mais pesados caem mais rápido no vácuo",
+      "trigger_patterns": ["mais pesado cai mais rápido", "cai mais rápido por ser pesado", "objeto pesado cai primeiro"],
+      "socratic_probe": "No experimento de Galileu, o que acontece com uma bola de chumbo e uma pena no vácuo?"
+    },
+    {
+      "id": "mc_energia_forca",
+      "description": "Confundir energia com força",
+      "trigger_patterns": ["energia para empurrar", "força de energia", "energia da força"],
+      "socratic_probe": "Uma pessoa segurando uma mochila parada por horas aplica força, mas realiza trabalho? E gasta energia química muscular?"
+    }
+  ],
+  "termodinamica": [
+    {
+      "id": "mc_calor_temperatura",
+      "description": "Tratar calor e temperatura como a mesma grandeza",
+      "trigger_patterns": ["calor é a temperatura", "temperatura é calor", "calor do corpo é", "medindo o calor com termômetro"],
+      "socratic_probe": "Um copo d'água fervendo e uma piscina a 30 °C — qual tem maior temperatura? Qual contém mais energia térmica?"
+    },
+    {
+      "id": "mc_frio_substancia",
+      "description": "Tratar 'frio' como substância que flui de objetos frios para quentes",
+      "trigger_patterns": ["o frio entrou", "frio passou para", "frio saiu da geladeira", "frio vem de"],
+      "socratic_probe": "Quando você toca um cubo de gelo e sente frio, o que realmente está sendo transferido — calor ou frio?"
+    },
+    {
+      "id": "mc_calor_propriedade",
+      "description": "Acreditar que calor é uma propriedade armazenada no objeto (não uma transferência)",
+      "trigger_patterns": ["o calor do objeto", "calor armazenado", "objeto cheio de calor", "contém calor"],
+      "socratic_probe": "Um objeto pode 'conter' calor, ou o calor existe apenas durante uma transferência de energia?"
+    },
+    {
+      "id": "mc_temperatura_velocidade",
+      "description": "Confundir temperatura com velocidade de todas as moléculas",
+      "trigger_patterns": ["todas as moléculas com a mesma velocidade", "temperatura é a velocidade das moléculas"],
+      "socratic_probe": "Em um gás a temperatura fixa, todas as moléculas têm exatamente a mesma velocidade?"
+    }
+  ],
+  "eletromagnetismo": [
+    {
+      "id": "mc_campo_sem_carga",
+      "description": "Acreditar que campo elétrico só existe onde há carga de teste",
+      "trigger_patterns": ["campo só existe quando há carga", "precisa de carga para ter campo", "campo depende da carga de teste"],
+      "socratic_probe": "O campo elétrico criado por uma carga fonte existe mesmo sem uma carga de teste para medi-lo?"
+    },
+    {
+      "id": "mc_corrente_consumida",
+      "description": "Acreditar que a corrente elétrica é 'consumida' no circuito",
+      "trigger_patterns": ["corrente foi consumida", "corrente diminui no resistor", "lâmpada consome corrente", "corrente gasta"],
+      "socratic_probe": "Em um circuito série, a corrente que entra em um resistor é diferente da que sai?"
+    },
+    {
+      "id": "mc_voltagem_circula",
+      "description": "Acreditar que voltagem circula no circuito como a corrente",
+      "trigger_patterns": ["voltagem circula", "tensão flui pelo circuito", "tensão passa pelo resistor"],
+      "socratic_probe": "Tensão é uma diferença de potencial entre dois pontos — ela pode 'circular' ou 'passar por' um componente?"
+    },
+    {
+      "id": "mc_campo_magnetico_forca",
+      "description": "Confundir campo magnético com força magnética",
+      "trigger_patterns": ["campo magnético empurra", "campo magnético é a força", "força do campo é o campo"],
+      "socratic_probe": "Uma carga em repouso dentro de um campo magnético sofre força magnética?"
+    }
+  ],
+  "ondas_optica": [
+    {
+      "id": "mc_onda_transporta_materia",
+      "description": "Acreditar que ondas transportam matéria",
+      "trigger_patterns": ["onda leva partículas", "onda transporta matéria", "onda move a água para frente", "onda carrega"],
+      "socratic_probe": "Quando uma onda do oceano passa por uma boia, a boia se desloca permanentemente para a praia?"
+    },
+    {
+      "id": "mc_luz_necessita_meio",
+      "description": "Acreditar que luz precisa de meio material para se propagar (como o som)",
+      "trigger_patterns": ["luz precisa de ar", "luz não viaja no vácuo", "luz precisa de meio"],
+      "socratic_probe": "Como a luz do Sol chega até a Terra se o espaço entre eles é vácuo?"
+    },
+    {
+      "id": "mc_reflexao_incidencia",
+      "description": "Medir ângulo de reflexão/refração a partir da superfície em vez da normal",
+      "trigger_patterns": ["ângulo com a superfície", "ângulo em relação à superfície", "ângulo da superfície"],
+      "socratic_probe": "Em óptica geométrica, os ângulos de incidência e reflexão são medidos em relação à superfície ou à normal a ela?"
+    }
+  ],
+  "fisica_moderna": [
+    {
+      "id": "mc_eletron_orbita_classica",
+      "description": "Imaginar o elétron orbitando o núcleo como planetas orbitam o Sol",
+      "trigger_patterns": ["elétron orbita como planeta", "trajetória do elétron", "caminho do elétron ao redor"],
+      "socratic_probe": "No modelo quântico, é possível determinar simultaneamente a posição exata e a velocidade exata de um elétron?"
+    },
+    {
+      "id": "mc_efeito_fotoeletrico_intensidade",
+      "description": "Acreditar que aumentar a intensidade da luz sempre arranca elétrons no efeito fotoelétrico",
+      "trigger_patterns": ["mais luz arranca mais elétrons", "intensidade maior ejeta elétrons", "luz mais intensa causa efeito fotoelétrico"],
+      "socratic_probe": "Se eu iluminar um metal com luz vermelha muito intensa, por que elétrons não são emitidos, mesmo com muita energia total?"
+    },
+    {
+      "id": "mc_radioatividade_contagiosa",
+      "description": "Acreditar que objetos 'pegam' radioatividade por contato como uma doença contagiosa",
+      "trigger_patterns": ["radioatividade contagia", "pega radioatividade", "contato com radioativo fica radioativo"],
+      "socratic_probe": "Um objeto pode se tornar radioativo ao ser exposto à radiação, ou apenas ao absorver nêutrons que alteram seu núcleo?"
+    }
+  ]
+}
