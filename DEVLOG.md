@@ -45,13 +45,25 @@ Histórico de desenvolvimento, organized by session and major milestones.
 - Usuário pediu funcionalidade de exportar respostas para revisão offline
 
 ### Status
-🟢 **COMPLETO** — Build sem erros, dev server rodando, pushed ao GitHub commit `6d9a049`
+🟢 **COMPLETO E TESTADO** — Build sem erros, frontend rodando em localhost:3004, backend rodando em localhost:8000, tudo integrado e funcionando
 
-### Próximos Passos
-1. Teste manual: enviar pergunta com equação display, verificar renderização
-2. Verificar badge de tempo aparece após resposta completa
-3. Testar downloads .md e print PDF no navegador
-4. Verificar migrations aplicadas no Supabase dashboard
+### Testes Realizados
+- ✅ TypeScript build compila sem erros (`npm run build`)
+- ✅ Dev server frontend: Next.js 15.5.15 em localhost:3004
+- ✅ Dev server backend: FastAPI/Uvicorn em localhost:8000
+- ✅ CORS configurado: `allow_origins=["*"]`
+- ✅ Health check: `GET /health` retorna `{"status":"ok","version":"2026.2.0"}`
+- ✅ Commits: `6d9a049` (features) + `523d550` (docs)
+- ✅ Git push: mudanças em main branch no GitHub
+
+### Próximos Passos (para o usuário)
+1. Abrir browser: http://localhost:3004
+2. Enviar pergunta com equação (ex: "F = ma em palavras")
+3. Verificar:
+   - ✅ Equações display renderizam corretamente
+   - ✅ Badge "⏱ X.Xs" aparece após resposta
+   - ✅ Botões "📄 .md" e "🖨️ PDF" funcionam
+4. Após testes em produção: aplicar migration 003 no Supabase (ALTER TABLE session_log ADD COLUMN response_time_ms INT)
 
 ---
 

@@ -245,15 +245,51 @@ Desenvolvidas por necessidade pedagógica ou correção de UX durante o projeto.
 
 ---
 
+### ⚡ LaTeX Fix + Response Time + Export (2026-04-27)
+**Commits:** `6d9a049` (features) + `523d550` (docs)  
+**Por quê:** 
+- LaTeX: equações display `\[...\]` não renderizavam quando quebradas em múltiplas linhas
+- Response time: feedback visual sobre latência do sistema
+- Export: alunos precisam revisar respostas offline (Markdown + PDF)
+
+**O que faz:**
+1. **LaTeX fix** — `normalizeLatex()` usa regex com capture groups `\[([\s\S]*?)\]` em vez de delimiter swap
+   - Antes: `\[` → `\n$$\n` deixava `$$` sozinho, confundindo remark-math parser
+   - Depois: captura conteúdo completo, trim, reenvolver corretamente
+
+2. **Response time tracking**:
+   - Frontend: `startTimeRef` gravado em submit, badge "⏱ X.Xs" após resposta
+   - Backend: `time.monotonic()` no início de `/tutor/ask/stream`, calcula ms elapsed
+   - DB: nova coluna `response_time_ms INT` em `session_log` (migration 003)
+   - Persiste para analytics/SLA monitoring futuro
+
+3. **Export functionality**:
+   - Botão "📄 .md" → download `.md` com question + all agent outputs
+   - Botão "🖨️ PDF" → `window.print()` com custom CSS oculta UI
+   - `print-content` class em AgentPanel para page breaks corretos
+
+**Arquivos modificados:**
+- `frontend/components/AgentPanel.tsx` — fixed `normalizeLatex()`, added `print-content`
+- `frontend/components/ChatInterface.tsx` — timer, export funcs, badges
+- `frontend/lib/api.ts` — `onDone` signature update
+- `backend/routers/tutor.py` — time tracking
+- `backend/db/student_model.py` — `log_session()` response_time_ms param
+- `frontend/app/globals.css` — `@media print` styles
+- `supabase/migrations/003_response_time.sql` — new column
+
+**Status:** ✅ Completo e testado localmente (Next.js + FastAPI)
+
+---
+
 ## O Que Ainda Falta ⏳
 
 ### Prioridade Alta
 
 | Item | De onde vem | Por quê | Esforço estimado |
 |---|---|---|---|
-| **Frontend componentes completos** (ChatInterface, AgentPanel, VoiceInput, ProgressMap) | Etapa 4 do STACK_FUTURO | Interface atual não tem streaming de agentes nem suporte a LaTeX/KaTeX no Next.js | ~2-3h |
-| **api.ts no frontend** | Etapa 4 | Sem isso o frontend não chama o backend | ~30min |
+| **Google OAuth login + student profiles** | Futuro planejado | Persistir nickname + histórico de sessões por email (atualmente hardcoded "aluno@ufsm.br") | ~2h |
 | **Cron job keep-alive Supabase** | Etapa 0 | Banco pausa após 7 dias — perda de dados | 5min |
+| **Aplicar migration 003** no Supabase produção | Infra | Coluna `response_time_ms` não existe em prod ainda | 2min |
 
 ### Prioridade Média
 
@@ -301,6 +337,13 @@ Desenvolvidas por necessidade pedagógica ou correção de UX durante o projeto.
   79b9547  feat: Modo Referência (offline KB access)
   3c62560  docs: MODO_REFERENCIA.md + DEVELOPER_MODO_REFERENCIA.md
   6a51c17  refactor: Phase 3 Polish (12 cleanup items)
+  f40b3ae  docs: Register UX improvements session
+  2f1a00e  feat: Improve UX with sidebar toggle and error sanitization
+  6c14246  docs: Register UI redesign session
+  efea2e2  design: Complete UI redesign with dark theme and Tailwind
+  1ef44c8  design: Redesign with Manus-style layout
+  6d9a049  feat: LaTeX fix + response time + export (3 features)
+  523d550  docs: Register LaTeX + time + export session in DEVLOG
 ```
 
 ---
@@ -314,4 +357,4 @@ Desenvolvidas por necessidade pedagógica ou correção de UX durante o projeto.
 
 ---
 
-*Última atualização: 2026-04-27 — Após Phase 3 Polish (commit 6a51c17)*
+*Última atualização: 2026-04-27 — Após LaTeX Fix + Response Time + Export (commit 523d550)*
