@@ -25,6 +25,10 @@ const SOURCE_HIERARCHY = [
 
 const AGENTS_ORDER = ["Intérprete", "Solucionador", "Visualizador", "Curador", "Avaliador"];
 
+const TIMER_TOTAL = 120;
+const TIMER_RADIUS = 17;
+const TIMER_CIRCUMFERENCE = 2 * Math.PI * TIMER_RADIUS;
+
 const AGENT_PIPELINE_STYLES: Record<string, { bg: string; text: string; accent: string }> = {
   "Intérprete":   { bg: "bg-indigo-500",  text: "text-indigo-600",  accent: "bg-indigo-400" },
   "Solucionador": { bg: "bg-emerald-500", text: "text-emerald-600", accent: "bg-emerald-400" },
@@ -49,6 +53,7 @@ export function ChatInterface() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSource, setActiveSource] = useState(0);
   const [responseTime, setResponseTime] = useState<number>(0);
+  const [timeLeft, setTimeLeft] = useState<number>(TIMER_TOTAL);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const startTimeRef = useRef<number>(0);
@@ -72,6 +77,16 @@ export function ChatInterface() {
     const t = setInterval(() => {
       setActiveSource((s) => (s + 1) % SOURCE_HIERARCHY.length);
     }, 900);
+    return () => clearInterval(t);
+  }, [loading]);
+
+  // Countdown timer while loading
+  useEffect(() => {
+    if (!loading) { setTimeLeft(TIMER_TOTAL); return; }
+    setTimeLeft(TIMER_TOTAL);
+    const t = setInterval(() => {
+      setTimeLeft((s) => Math.max(0, s - 1));
+    }, 1000);
     return () => clearInterval(t);
   }, [loading]);
 
@@ -258,23 +273,60 @@ export function ChatInterface() {
                   <div className="bg-white border rounded-xl p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
 
                     {/* Status header */}
-                    <div className="flex items-center gap-2.5 mb-5">
-                      <div className="w-3 h-3 rounded-full border-2 border-stone-200 border-t-indigo-500 animate-spin flex-shrink-0" />
-                      <p className="text-sm text-stone-600">
-                        {streamingAgent ? (
-                          <>
-                            <span className={`font-semibold ${AGENT_PIPELINE_STYLES[streamingAgent]?.text ?? "text-stone-800"}`}>
-                              {AGENT_COLORS[streamingAgent]?.icon} {streamingAgent}
+                    {(() => {
+                      const timerColor =
+                        timeLeft > 60 ? "#6366f1" : timeLeft > 20 ? "#f59e0b" : "#ef4444";
+                      const arcOffset =
+                        TIMER_CIRCUMFERENCE * (1 - timeLeft / TIMER_TOTAL);
+                      const urgent = timeLeft <= 20;
+                      return (
+                        <div className="flex items-center gap-2.5 mb-5">
+                          <div className="w-3 h-3 rounded-full border-2 border-stone-200 border-t-indigo-500 animate-spin flex-shrink-0" />
+                          <p className="text-sm text-stone-600 flex-1">
+                            {streamingAgent ? (
+                              <>
+                                <span className={`font-semibold ${AGENT_PIPELINE_STYLES[streamingAgent]?.text ?? "text-stone-800"}`}>
+                                  {AGENT_COLORS[streamingAgent]?.icon} {streamingAgent}
+                                </span>
+                                {" "}está processando…
+                              </>
+                            ) : agents.length > 0 ? (
+                              "Concluindo…"
+                            ) : (
+                              "Iniciando agentes…"
+                            )}
+                          </p>
+
+                          {/* Countdown arc */}
+                          <div className={`flex flex-col items-center gap-0.5 flex-shrink-0 ${urgent ? "animate-pulse" : ""}`}>
+                            <div className="relative w-10 h-10">
+                              <svg width="40" height="40" viewBox="0 0 40 40" className="-rotate-90">
+                                <circle cx="20" cy="20" r={TIMER_RADIUS} fill="none" stroke="#e7e5e4" strokeWidth="2.5" />
+                                <circle
+                                  cx="20" cy="20" r={TIMER_RADIUS}
+                                  fill="none"
+                                  stroke={timerColor}
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeDasharray={TIMER_CIRCUMFERENCE}
+                                  strokeDashoffset={arcOffset}
+                                  style={{ transition: "stroke-dashoffset 1s linear, stroke 0.5s ease" }}
+                                />
+                              </svg>
+                              <span
+                                className="absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums"
+                                style={{ color: timerColor, transition: "color 0.5s ease" }}
+                              >
+                                {timeLeft}
+                              </span>
+                            </div>
+                            <span className="text-[9px] text-stone-400 text-center leading-tight">
+                              Resposta<br />esperada em
                             </span>
-                            {" "}está processando…
-                          </>
-                        ) : agents.length > 0 ? (
-                          "Concluindo…"
-                        ) : (
-                          "Iniciando agentes…"
-                        )}
-                      </p>
-                    </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Agent pipeline nodes */}
                     <div className="flex items-start mb-5 px-1">
