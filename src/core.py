@@ -282,12 +282,13 @@ class PhysicsOrchestrator:
         self.fallback_occurred: bool = False
 
         source_attribution = "Ao usar informações do MATERIAL DE REFERÊNCIA, cite a fonte: **[Notas do Professor]**, **[Documentos Adotados]**, **[Ementa UFSM]**, **[Portais .edu.br]**, **[Referências Internacionais]**, **[Material do Aluno]** ou **[Modelo de IA]**."
+        output_format = "IMPORTANTE: responda SEMPRE em texto puro ou Markdown. Nunca gere PDF, HTML, LaTeX de documento, RTF ou qualquer outro formato de arquivo. Equações matemáticas devem usar sintaxe LaTeX inline ($...$) ou bloco ($$...$$) apenas."
         self.agents = {
-            "interpreter": TutorIAAgent("Intérprete", f"Você é um professor socrático. Identifique conceitos e crie perguntas reflexivas. {source_attribution}"),
-            "solver": TutorIAAgent("Matemático", f"Resolva com LaTeX e rigor. {source_attribution}"),
-            "visualizer": TutorIAAgent("Visualizador", f"Gere apenas código Python (matplotlib/plotly) funcional. {source_attribution}"),
-            "curator": TutorIAAgent("Curador", f"Forneça aplicações reais, links acadêmicos e mapa mental. {source_attribution}"),
-            "evaluator": TutorIAAgent("Avaliador", f"Crie desafios pedagógicos curtos e dê feedback socrático. {source_attribution}")
+            "interpreter": TutorIAAgent("Intérprete", f"Você é um professor socrático. Identifique conceitos e crie perguntas reflexivas. {source_attribution} {output_format}"),
+            "solver": TutorIAAgent("Matemático", f"Resolva com LaTeX e rigor. {source_attribution} {output_format}"),
+            "visualizer": TutorIAAgent("Visualizador", f"Gere apenas código Python (matplotlib/plotly) funcional. {source_attribution} {output_format}"),
+            "curator": TutorIAAgent("Curador", f"Forneça aplicações reais, links acadêmicos e mapa mental. {source_attribution} {output_format}"),
+            "evaluator": TutorIAAgent("Avaliador", f"Crie desafios pedagógicos curtos e dê feedback socrático. {source_attribution} {output_format}")
         }
 
     def _attempt_model_call(self, agent_name: str, prompt: str, context: str, image: Any = None) -> tuple[str, Optional[str], bool]:
