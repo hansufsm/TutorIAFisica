@@ -23,6 +23,16 @@ const SOURCE_HIERARCHY = [
   { icon: "🤖", label: "Complementação de IA",     desc: "Síntese e enriquecimento" },
 ];
 
+const AGENTS_ORDER = ["Intérprete", "Solucionador", "Visualizador", "Curador", "Avaliador"];
+
+const AGENT_PIPELINE_STYLES: Record<string, { bg: string; text: string; accent: string }> = {
+  "Intérprete":   { bg: "bg-indigo-500",  text: "text-indigo-600",  accent: "bg-indigo-400" },
+  "Solucionador": { bg: "bg-emerald-500", text: "text-emerald-600", accent: "bg-emerald-400" },
+  "Visualizador": { bg: "bg-orange-500",  text: "text-orange-600",  accent: "bg-orange-400" },
+  "Curador":      { bg: "bg-purple-500",  text: "text-purple-600",  accent: "bg-purple-400" },
+  "Avaliador":    { bg: "bg-red-500",     text: "text-red-600",     accent: "bg-red-400" },
+};
+
 export function ChatInterface() {
   const [question, setQuestion] = useState("");
   const [agents, setAgents] = useState<AgentOutput[]>([]);
@@ -242,39 +252,106 @@ export function ChatInterface() {
                 </div>
               )}
 
-              {/* Source Hierarchy Loading Card */}
-              {loading && !agents.length && (
-                <div className="animate-fade-in mb-8">
+              {/* Agent Pipeline + Source Loading */}
+              {loading && (
+                <div className="animate-fade-in mb-6">
                   <div className="bg-white border rounded-xl p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-4 h-4 rounded-full border-2 border-stone-200 border-t-indigo-500 animate-spin flex-shrink-0" />
-                      <p className="text-sm font-semibold text-stone-800">Consultando Fontes</p>
+
+                    {/* Status header */}
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <div className="w-3 h-3 rounded-full border-2 border-stone-200 border-t-indigo-500 animate-spin flex-shrink-0" />
+                      <p className="text-sm text-stone-600">
+                        {streamingAgent ? (
+                          <>
+                            <span className={`font-semibold ${AGENT_PIPELINE_STYLES[streamingAgent]?.text ?? "text-stone-800"}`}>
+                              {AGENT_COLORS[streamingAgent]?.icon} {streamingAgent}
+                            </span>
+                            {" "}está processando…
+                          </>
+                        ) : agents.length > 0 ? (
+                          "Concluindo…"
+                        ) : (
+                          "Iniciando agentes…"
+                        )}
+                      </p>
                     </div>
-                    <div className="space-y-1">
-                      {SOURCE_HIERARCHY.map((src, i) => (
-                        <div
-                          key={i}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-500 ${
-                            activeSource === i ? "bg-indigo-50 border border-indigo-100" : "bg-transparent"
-                          }`}
-                        >
-                          <span className="text-base leading-none">{src.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-medium transition-colors ${activeSource === i ? "text-indigo-700" : "text-stone-600"}`}>
-                              {src.label}
-                            </p>
-                            <p className="text-xs text-stone-400 truncate">{src.desc}</p>
+
+                    {/* Agent pipeline nodes */}
+                    <div className="flex items-start mb-5 px-1">
+                      {AGENTS_ORDER.map((agentName, idx) => {
+                        const ps = AGENT_PIPELINE_STYLES[agentName];
+                        const ac = AGENT_COLORS[agentName];
+                        const isDone = agents.some((a) => a.agent_name === agentName);
+                        const isActive = streamingAgent === agentName;
+                        return (
+                          <div key={agentName} className="flex items-center flex-1">
+                            {/* Node */}
+                            <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                              <div className="relative w-10 h-10 flex items-center justify-center">
+                                {isActive && (
+                                  <div className={`absolute inset-0 rounded-full animate-ping opacity-25 ${ps.accent}`} />
+                                )}
+                                <div className={`
+                                  relative z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-500
+                                  ${isDone ? `${ps.bg} shadow-sm` : isActive ? `${ps.bg} shadow-lg scale-110` : "bg-stone-100 border-2 border-dashed border-stone-300"}
+                                `}>
+                                  {isDone
+                                    ? <span className="text-white text-xs font-bold">✓</span>
+                                    : <span className={`text-sm leading-none ${!isActive ? "opacity-35" : ""}`}>{ac.icon}</span>
+                                  }
+                                </div>
+                              </div>
+                              <span className={`text-[10px] font-medium text-center leading-tight w-14 transition-colors duration-300 ${
+                                isDone || isActive ? ps.text : "text-stone-400"
+                              }`}>
+                                {agentName}
+                              </span>
+                            </div>
+                            {/* Connector line */}
+                            {idx < AGENTS_ORDER.length - 1 && (
+                              <div className="flex-1 h-0.5 mx-1 mb-5 rounded-full bg-stone-100 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-700 ${ps.accent}`}
+                                  style={{ width: isDone ? "100%" : "0%" }}
+                                />
+                              </div>
+                            )}
                           </div>
-                          {activeSource === i && (
-                            <span className="text-xs text-indigo-500 animate-pulse-soft font-medium">Buscando…</span>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                    {/* Priority flow indicator */}
-                    <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-xs text-stone-400 text-center">Prioridade: Notas → Disciplina → Ementa → Web → IA</p>
-                    </div>
+
+                    {/* Source cycling — only before first agent arrives */}
+                    {!agents.length && (
+                      <div className="border-t pt-3 space-y-0.5" style={{ borderColor: "var(--border)" }}>
+                        {SOURCE_HIERARCHY.map((src, i) => (
+                          <div
+                            key={i}
+                            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all duration-500 ${
+                              activeSource === i ? "bg-indigo-50 border border-indigo-100" : ""
+                            }`}
+                          >
+                            <span className={`text-sm inline-block transition-transform duration-200 ${activeSource === i ? "scale-110" : ""}`}>
+                              {src.icon}
+                            </span>
+                            <span className={`text-xs flex-1 transition-colors ${activeSource === i ? "text-indigo-700 font-medium" : "text-stone-500"}`}>
+                              {src.label}
+                            </span>
+                            {activeSource === i && (
+                              <div className="flex gap-0.5 items-center">
+                                {[0, 1, 2].map((d) => (
+                                  <div
+                                    key={d}
+                                    className="w-1 h-1 rounded-full bg-indigo-400 animate-bounce"
+                                    style={{ animationDelay: `${d * 120}ms` }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
