@@ -57,6 +57,7 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const startTimeRef = useRef<number>(0);
+  const timerMaxRef = useRef<number>(TIMER_TOTAL);
 
   useEffect(() => {
     fetchModels().then((list) => {
@@ -80,12 +81,24 @@ export function ChatInterface() {
     return () => clearInterval(t);
   }, [loading]);
 
-  // Countdown timer while loading
+  // Countdown timer while loading — reinicia com 15% menos quando chega a zero
   useEffect(() => {
-    if (!loading) { setTimeLeft(TIMER_TOTAL); return; }
+    if (!loading) {
+      setTimeLeft(TIMER_TOTAL);
+      timerMaxRef.current = TIMER_TOTAL;
+      return;
+    }
+    timerMaxRef.current = TIMER_TOTAL;
     setTimeLeft(TIMER_TOTAL);
     const t = setInterval(() => {
-      setTimeLeft((s) => Math.max(0, s - 1));
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          const nextMax = Math.max(5, Math.round(timerMaxRef.current * 0.85));
+          timerMaxRef.current = nextMax;
+          return nextMax;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(t);
   }, [loading]);
@@ -283,11 +296,14 @@ export function ChatInterface() {
 
                     {/* Status header */}
                     {(() => {
+                      const currentMax = timerMaxRef.current;
                       const timerColor =
-                        timeLeft > 60 ? "#6366f1" : timeLeft > 20 ? "#f59e0b" : "#ef4444";
+                        timeLeft > currentMax * 0.6 ? "#6366f1"
+                        : timeLeft > currentMax * 0.2 ? "#f59e0b"
+                        : "#ef4444";
                       const arcOffset =
-                        TIMER_CIRCUMFERENCE * (1 - timeLeft / TIMER_TOTAL);
-                      const urgent = timeLeft <= 20;
+                        TIMER_CIRCUMFERENCE * (1 - timeLeft / currentMax);
+                      const urgent = timeLeft <= Math.max(5, Math.round(currentMax * 0.2));
                       return (
                         <div className="flex items-center gap-2.5 mb-5">
                           <div className="w-3 h-3 rounded-full border-2 border-stone-200 border-t-indigo-500 animate-spin flex-shrink-0" />

@@ -47,7 +47,7 @@ class Config:
     
     # Configurações Pedagógicas
     SYLLABUS_PATH = os.path.join(os.path.dirname(__file__), "../data/ufsm_syllabus.json")
-    DELAY_BETWEEN_AGENTS = 2
+    DELAY_BETWEEN_AGENTS = 0
     
     @staticmethod
     def get_provider_key_name(model_display_name: str) -> str | None:
