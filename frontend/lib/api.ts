@@ -52,7 +52,7 @@ export interface TutorRequest {
 export async function askTutorStream(
   req: TutorRequest,
   onAgent: (a: AgentOutput) => void,
-  onDone: (due: DueReview[], sessionId?: string) => void,
+  onDone: (due: DueReview[], sessionId?: string, responseTimeMs?: number) => void,
   onError: (e: string) => void
 ): Promise<void> {
   const res = await fetch(`${API}/tutor/ask/stream`, {
@@ -77,7 +77,7 @@ export async function askTutorStream(
       try {
         const data = JSON.parse(line.slice(6));
         if (data.is_final) {
-          onDone(data.due_for_review ?? [], data.session_id);
+          onDone(data.due_for_review ?? [], data.session_id, data.response_time_ms);
           break;
         }
         if (data.error) {

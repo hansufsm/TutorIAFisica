@@ -110,3 +110,12 @@ input:focus, textarea:focus, select:focus {
 .gradient-text {
   @apply bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-600 bg-clip-text text-transparent;
 }
+
+/* Print styles */
+@media print {
+  aside, header, .glass-sm, [data-no-print] { display: none !important; }
+  main { display: block !important; overflow: visible !important; }
+  .print-content { break-inside: avoid; page-break-inside: avoid; }
+  body { background: white !important; color: black !important; font-size: 11pt; }
+  .animate-slide-in-up { animation: none !important; }
+}

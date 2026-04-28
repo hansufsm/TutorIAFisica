@@ -2,6 +2,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 import json
+import time
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from backend.schemas.request import TutorRequest, EvaluatorFeedback, BrokenLinkReport
@@ -97,6 +98,7 @@ async def ask_tutor_stream(req: TutorRequest):
     state, model_id, api_key = _build_state(req)
 
     async def generate():
+        t0 = time.monotonic()
         orchestrator = PhysicsOrchestrator()
         agents_dict = {}
 
@@ -132,6 +134,7 @@ async def ask_tutor_stream(req: TutorRequest):
                     agents_dict[name] = content
                     yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
+        response_time_ms = int((time.monotonic() - t0) * 1000)
         due = get_concepts_due_for_review(student["id"])
         session_id = log_session(
             student_id=student["id"],
@@ -140,8 +143,9 @@ async def ask_tutor_stream(req: TutorRequest):
             model_used=result.used_model_display_name if 'result' in locals() else req.model_name,
             fallback=result.fallback_occurred if 'result' in locals() else False,
             agents_output=agents_dict,
+            response_time_ms=response_time_ms,
         )
-        yield f"data: {json.dumps({'is_final': True, 'due_for_review': due[:3], 'session_id': session_id})}\n\n"
+        yield f"data: {json.dumps({'is_final': True, 'due_for_review': due[:3], 'session_id': session_id, 'response_time_ms': response_time_ms})}\n\n"
 
     return StreamingResponse(
         generate(),

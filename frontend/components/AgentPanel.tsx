@@ -9,10 +9,8 @@ import { AgentOutput, reportBrokenLink } from "@/lib/api";
 // Convert TeX-style delimiters (\[...\] and \(...\)) to remark-math's $...$ syntax
 function normalizeLatex(content: string): string {
   return content
-    .replace(/\\\[/g, "\n$$\n")   // \[ → display block
-    .replace(/\\\]/g, "\n$$\n")   // \] → display block
-    .replace(/\\\(/g, "$")        // \( → inline
-    .replace(/\\\)/g, "$");       // \) → inline
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `\n\n$$\n${math.trim()}\n$$\n\n`)
+    .replace(/\\\(([^)]+)\\\)/g, (_, math) => `$${math.trim()}$`);
 }
 
 const AGENT_COLORS: Record<string, { icon: string; dotColor: string }> = {
@@ -66,7 +64,7 @@ export function AgentPanel({
   };
 
   return (
-    <div className="animate-slide-in-up bg-white rounded-xl p-5 border shadow-sm transition hover:shadow-md" style={{ borderColor: "var(--border)" }}>
+    <div className="animate-slide-in-up bg-white rounded-xl p-5 border shadow-sm transition hover:shadow-md print-content" style={{ borderColor: "var(--border)" }}>
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">

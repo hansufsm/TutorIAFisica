@@ -37,8 +37,10 @@ export function ChatInterface() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSource, setActiveSource] = useState(0);
+  const [responseTime, setResponseTime] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -60,6 +62,24 @@ export function ChatInterface() {
     }
   };
 
+  function downloadMarkdown() {
+    const lines = [`# TutorIA Física\n\n**Pergunta:** ${question}\n`];
+    for (const a of agents) {
+      lines.push(`\n## ${a.agent_name} (${a.dimension})\n\n${a.content}`);
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const el = document.createElement('a');
+    el.href = url;
+    el.download = `tutoria_${Date.now()}.md`;
+    el.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printPDF() {
+    window.print();
+  }
+
   // Step 1: show confirmation
   function requestSend() {
     if (!question.trim() || loading) return;
@@ -74,6 +94,8 @@ export function ChatInterface() {
     setAgents([]);
     setActiveTab(null);
     setError(null);
+    setResponseTime(0);
+    startTimeRef.current = Date.now();
 
     await askTutorStream(
       { question, model_name: model, student_email: "aluno@ufsm.br" },
@@ -82,11 +104,12 @@ export function ChatInterface() {
         setActiveTab(agent.agent_name);
         setAgents((prev) => [...prev, agent]);
       },
-      (dueList, sessionIdFromServer) => {
+      (dueList, sessionIdFromServer, responseTimeMs) => {
         setDue(dueList);
         setSessionId(sessionIdFromServer ?? null);
         setStreamingAgent(null);
         setLoading(false);
+        if (responseTimeMs) setResponseTime(responseTimeMs);
       },
       (err) => {
         setError(err);
@@ -249,7 +272,7 @@ export function ChatInterface() {
               {/* Agent Tabs */}
               {agents.length > 0 && (
                 <>
-                  <div className="flex gap-2 flex-wrap mb-4">
+                  <div className="flex gap-2 flex-wrap mb-4 items-center">
                     {agents.map((a) => {
                       const config = AGENT_COLORS[a.agent_name] || { icon: "⚙️", dotColor: "bg-stone-400", activePill: "bg-stone-600" };
                       const isActive = activeTab === a.agent_name;
@@ -268,6 +291,27 @@ export function ChatInterface() {
                         </button>
                       );
                     })}
+                    {responseTime > 0 && !loading && (
+                      <span className="text-xs text-stone-400 ml-auto">⏱ {(responseTime / 1000).toFixed(1)}s</span>
+                    )}
+                    {!loading && (
+                      <div className="ml-auto flex gap-1.5">
+                        <button
+                          onClick={downloadMarkdown}
+                          className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium transition-all border border-stone-200"
+                          title="Download as Markdown"
+                        >
+                          📄 .md
+                        </button>
+                        <button
+                          onClick={printPDF}
+                          className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium transition-all border border-stone-200"
+                          title="Print as PDF"
+                        >
+                          🖨️ PDF
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {activeTab && (

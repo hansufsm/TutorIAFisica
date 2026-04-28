@@ -147,18 +147,22 @@ def log_session(
     topic: str,
     model_used: str,
     fallback: bool,
-    agents_output: dict
+    agents_output: dict,
+    response_time_ms: int = None
 ) -> str:
     """Salva log completo da sessão e retorna o session_id."""
     sb = get_supabase()
-    result = sb.table("session_log").insert({
+    payload = {
         "student_id": student_id,
         "question": question,
         "topic": topic,
         "model_used": model_used,
         "fallback": fallback,
         "agents_output": agents_output,
-    }).execute()
+    }
+    if response_time_ms is not None:
+        payload["response_time_ms"] = response_time_ms
+    result = sb.table("session_log").insert(payload).execute()
     return result.data[0]["id"] if result.data else None
 
 
