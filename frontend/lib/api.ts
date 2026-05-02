@@ -204,6 +204,27 @@ export async function submitFeedback(
   if (!res.ok) throw new Error(`Feedback submission failed: ${res.status}`);
 }
 
+export interface WeeklyTopic {
+  disciplina_codigo: string;
+  disciplina_nome: string;
+  semana: number;
+  tema: string;
+  status: "mastered" | "developing" | "not_started";
+  mastery_level: number;
+}
+
+export interface WeeklySuggestion {
+  week: number;
+  in_semester: boolean;
+  topics: WeeklyTopic[];
+}
+
+export async function getWeeklySuggestion(email: string): Promise<WeeklySuggestion> {
+  const res = await fetch(`${API}/student/${encodeURIComponent(email)}/weekly-suggestion`);
+  if (!res.ok) throw new Error(`Failed to fetch weekly suggestion: ${res.status}`);
+  return res.json();
+}
+
 export async function reportBrokenLink(payload: {
   studentEmail: string;
   sessionId?: string;

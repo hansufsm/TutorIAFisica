@@ -1,12 +1,22 @@
 {
   "curso": "Física Licenciatura Plena - UFSM",
   "codigo_curso": "679",
+  "semestre_inicio": "2026-03-09",
+  "semestre_fim": "2026-07-04",
   "disciplinas": [
     {
       "codigo": "FSC1027",
       "nome": "Física I",
       "periodo": 1,
       "temas": ["Cinemática", "Dinâmica", "Leis de Newton", "Trabalho", "Energia", "Gravitação"],
+      "cronograma": [
+        { "semana": 1,  "tema": "Cinemática" },
+        { "semana": 3,  "tema": "Dinâmica" },
+        { "semana": 5,  "tema": "Leis de Newton" },
+        { "semana": 7,  "tema": "Trabalho" },
+        { "semana": 9,  "tema": "Energia" },
+        { "semana": 11, "tema": "Gravitação" }
+      ],
       "bibliografia_basica": [
         "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 1: Mecânica.",
         "Tipler, P. A., Mosca, G. Física para Cientistas e Engenheiros, Vol. 1."
@@ -21,6 +31,13 @@
       "nome": "Física II",
       "periodo": 2,
       "temas": ["Fluidos", "Oscilações", "Ondas", "Termodinâmica", "Calor"],
+      "cronograma": [
+        { "semana": 1,  "tema": "Fluidos" },
+        { "semana": 3,  "tema": "Oscilações" },
+        { "semana": 5,  "tema": "Ondas" },
+        { "semana": 8,  "tema": "Termodinâmica" },
+        { "semana": 12, "tema": "Calor" }
+      ],
       "bibliografia_basica": [
         "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 2.",
         "Tipler, P. A., Mosca, G. Física para Cientistas e Engenheiros, Vol. 2."
@@ -34,6 +51,15 @@
       "nome": "Física III",
       "periodo": 3,
       "temas": ["Eletrostática", "Lei de Coulomb", "Campo Elétrico", "Potencial Elétrico", "Capacitância", "Circuitos", "Magnetismo"],
+      "cronograma": [
+        { "semana": 1,  "tema": "Eletrostática" },
+        { "semana": 2,  "tema": "Lei de Coulomb" },
+        { "semana": 4,  "tema": "Campo Elétrico" },
+        { "semana": 6,  "tema": "Potencial Elétrico" },
+        { "semana": 8,  "tema": "Capacitância" },
+        { "semana": 9,  "tema": "Circuitos" },
+        { "semana": 12, "tema": "Magnetismo" }
+      ],
       "bibliografia_basica": [
         "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 3.",
         "Tipler, P. A., Mosca, G. Física para Cientistas e Engenheiros, Vol. 2."
@@ -48,6 +74,14 @@
       "nome": "Física IV",
       "periodo": 4,
       "temas": ["Óptica", "Interferência", "Difração", "Relatividade", "Física Moderna", "Mecânica Quântica"],
+      "cronograma": [
+        { "semana": 1,  "tema": "Óptica" },
+        { "semana": 3,  "tema": "Interferência" },
+        { "semana": 5,  "tema": "Difração" },
+        { "semana": 7,  "tema": "Relatividade" },
+        { "semana": 9,  "tema": "Física Moderna" },
+        { "semana": 12, "tema": "Mecânica Quântica" }
+      ],
       "bibliografia_basica": [
         "Halliday, D., Resnick, R., Walker, J. Fundamentos de Física, Vol. 4.",
         "Eisberg, R., Resnick, R. Física Quântica."

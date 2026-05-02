@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AgentPanel } from "./AgentPanel";
 import { VoiceInput } from "./VoiceInput";
-import { askTutorStream, fetchModels, AgentOutput, DueReview } from "@/lib/api";
+import { askTutorStream, fetchModels, AgentOutput, DueReview, getWeeklySuggestion, WeeklyTopic } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap, LogOut } from "lucide-react";
@@ -107,6 +107,8 @@ export function ChatInterface() {
   const [models, setModels] = useState<string[]>(MODELS_FALLBACK);
   const [model, setModel] = useState(MODELS_FALLBACK[0]);
   const [due, setDue] = useState<DueReview[]>([]);
+  const [weeklyTopics, setWeeklyTopics] = useState<WeeklyTopic[]>([]);
+  const [currentWeek, setCurrentWeek] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -141,6 +143,19 @@ export function ChatInterface() {
   useEffect(() => {
     currentModelRef.current = model;
   }, [model]);
+
+  // Fetch weekly curriculum suggestion for authenticated students
+  useEffect(() => {
+    if (!studentEmail) return;
+    getWeeklySuggestion(studentEmail)
+      .then((data) => {
+        if (data.in_semester) {
+          setWeeklyTopics(data.topics);
+          setCurrentWeek(data.week);
+        }
+      })
+      .catch(() => { /* silently skip if backend unavailable */ });
+  }, [studentEmail]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -382,6 +397,27 @@ export function ChatInterface() {
               </button>
             )}
           </nav>
+        )}
+
+        {/* Weekly curriculum card */}
+        {sidebarOpen && weeklyTopics.length > 0 && (
+          <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs">
+            <p className="font-semibold text-indigo-700 mb-1.5">📅 Semana {currentWeek} do semestre</p>
+            <ul className="space-y-1">
+              {weeklyTopics.map((t) => (
+                <li key={t.disciplina_codigo} className="flex items-center justify-between gap-2">
+                  <span className="text-stone-700 truncate" title={t.disciplina_nome}>{t.tema}</span>
+                  <span className={`flex-shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                    t.status === "mastered"   ? "bg-emerald-100 text-emerald-700" :
+                    t.status === "developing" ? "bg-yellow-100 text-yellow-700"  :
+                                               "bg-stone-200 text-stone-500"
+                  }`}>
+                    {t.status === "mastered" ? "✓" : t.status === "developing" ? `${Math.round(t.mastery_level * 100)}%` : "novo"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {/* Model Selector */}

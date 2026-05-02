@@ -12,6 +12,7 @@ from backend.db.student_model import (
     get_similar_sessions,
 )
 from backend.db.embeddings import generate_embedding
+from backend.db.curriculum import get_current_week, get_current_topics, build_curriculum_context_block
 
 from core import PhysicsOrchestrator, PhysicsState
 from config import Config
@@ -47,6 +48,11 @@ async def ask_tutor_stream(req: TutorRequest):
 
     due_before = get_concepts_due_for_review(student["id"])
     state.due_concepts = due_before[:5]
+
+    # Sprint 4: Curriculum-aware — contexto da semana atual do semestre
+    curr_week = get_current_week()
+    curr_topics = get_current_topics()
+    state.curriculum_context = build_curriculum_context_block(curr_week, curr_topics)
 
     # Sprint 3: Long-term RAG — buscar sessões anteriores similares
     question_embedding = await generate_embedding(req.question)

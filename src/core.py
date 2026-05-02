@@ -57,6 +57,9 @@ class PhysicsState:
         # Sprint 3: Long-term RAG — contexto de sessões anteriores similares
         self.prior_sessions_context: str = ""
 
+        # Sprint 4: Curriculum-aware — contexto da semana atual do semestre UFSM
+        self.curriculum_context: str = ""
+
     @property
     def teacher_notes(self) -> str:
         """Compatibilidade: retorna a concatenação de todas as notas."""
@@ -584,6 +587,8 @@ class PhysicsOrchestrator:
         interp_context = context + ("\n\n" + mc_block if mc_block else "")
         if state.prior_sessions_context:
             interp_context += f"\n\n{state.prior_sessions_context}"
+        if state.curriculum_context:
+            interp_context += f"\n\n{state.curriculum_context}"
 
         for event_type, event_data in self._attempt_model_call_stream("interpreter", input_data, interp_context, state.image_input):
             if event_type == "token":
