@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { AgentPanel } from "./AgentPanel";
 import { VoiceInput } from "./VoiceInput";
 import { askTutorStream, fetchModels, AgentOutput, DueReview } from "@/lib/api";
-import { Plus, MessageSquare, BookOpen, Settings, Send, ChevronDown } from "lucide-react";
+import { Plus, MessageSquare, BookOpen, Settings, Send, ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 const MODELS_FALLBACK = ["DeepSeek Chat", "Gemini 2.0 Flash"];
 
@@ -50,6 +50,8 @@ export function ChatInterface() {
   const [error, setError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelStatus, setModelStatus] = useState<Record<string, "ok" | "error" | "unknown">>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [activeSource, setActiveSource] = useState(0);
   const [responseTime, setResponseTime] = useState<number>(0);
@@ -158,10 +160,12 @@ export function ChatInterface() {
         setStreamingAgent(null);
         setLoading(false);
         if (responseTimeMs) setResponseTime(responseTimeMs);
+        setModelStatus((prev) => ({ ...prev, [model]: "ok" }));
       },
       (err) => {
         setError(err);
         setLoading(false);
+        setModelStatus((prev) => ({ ...prev, [model]: "error" }));
       }
     );
   }
@@ -194,10 +198,10 @@ export function ChatInterface() {
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="flex-shrink-0 text-xs font-mono font-bold text-stone-400 hover:text-stone-700 transition px-1"
-            title={sidebarOpen ? "Recolher" : "Expandir"}
+            className="flex-shrink-0 text-stone-400 hover:text-stone-700 transition p-1 rounded hover:bg-stone-100"
+            title={sidebarOpen ? "Recolher painel" : "Expandir painel"}
           >
-            {sidebarOpen ? "«" : "»"}
+            {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
           </button>
         </div>
 
@@ -220,22 +224,48 @@ export function ChatInterface() {
         )}
 
         {/* Model Selector */}
-        <div className={`border-t pt-4 space-y-2 ${!sidebarOpen ? "hidden" : ""}`} style={{ borderColor: "var(--border)" }}>
-          <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Modelo</p>
-          <div className="relative">
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="w-full text-sm appearance-none pr-7 py-2 px-3 rounded-lg border text-stone-800 bg-white"
-              style={{ borderColor: "var(--border)" }}
-            >
-              {models.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
+        {sidebarOpen && (
+          <div className="border-t pt-4 space-y-2" style={{ borderColor: "var(--border)" }}>
+            <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Modelo</p>
+            <div className="relative">
+              <button
+                onClick={() => setModelDropdownOpen((o) => !o)}
+                className="w-full flex items-center gap-2 text-sm py-2 px-3 rounded-lg border text-stone-800 bg-white hover:bg-stone-50 transition"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  modelStatus[model] === "ok" ? "bg-emerald-500" :
+                  modelStatus[model] === "error" ? "bg-red-500" : "bg-stone-300"
+                }`} />
+                <span className="flex-1 text-left truncate">{model}</span>
+                <ChevronDown size={13} className="text-stone-400 flex-shrink-0" />
+              </button>
+              {modelDropdownOpen && (
+                <div className="absolute bottom-full mb-1 left-0 right-0 bg-white border rounded-lg shadow-lg overflow-hidden z-50" style={{ borderColor: "var(--border)" }}>
+                  {models.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => { setModel(m); setModelDropdownOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left transition ${
+                        m === model ? "bg-indigo-50 text-indigo-700" : "text-stone-700 hover:bg-stone-50"
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        modelStatus[m] === "ok" ? "bg-emerald-500" :
+                        modelStatus[m] === "error" ? "bg-red-500" : "bg-stone-300"
+                      }`} />
+                      <span className="truncate">{m}</span>
+                      {m === model && <span className="ml-auto text-indigo-400 text-xs">✓</span>}
+                    </button>
+                  ))}
+                  <div className="px-3 py-1.5 border-t text-xs text-stone-400" style={{ borderColor: "var(--border)" }}>
+                    🟢 funcionando · ⚫ não testado · 🔴 erro
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Main */}
@@ -313,12 +343,15 @@ export function ChatInterface() {
                                 <span className={`font-semibold ${AGENT_PIPELINE_STYLES[pipelineActive]?.text ?? "text-stone-800"}`}>
                                   {AGENT_COLORS[pipelineActive]?.icon} {pipelineActive}
                                 </span>
-                                {" "}está processando…
+                                {" "}analisando…
+                                <span className="ml-2 text-xs text-stone-400 font-normal">
+                                  {agents.length}/{AGENTS_ORDER.length}
+                                </span>
                               </>
                             ) : agents.length > 0 ? (
-                              "Concluindo…"
+                              "Finalizando…"
                             ) : (
-                              "Iniciando agentes…"
+                              "Conectando aos agentes…"
                             )}
                           </p>
 
