@@ -323,10 +323,12 @@ export function ChatInterface() {
       <aside className={`${sidebarOpen ? "w-64" : "w-16"} transition-all duration-300 sidebar-bg flex flex-col p-4 overflow-y-auto flex-shrink-0`}>
 
         {/* Logo + Toggle */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-base">⚛️</span>
-          </div>
+        <div className={`flex items-center mb-8 ${sidebarOpen ? "gap-3" : "justify-center"}`}>
+          {sidebarOpen && (
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-base">⚛️</span>
+            </div>
+          )}
           {sidebarOpen && (
             <div className="flex-1 min-w-0">
               <h1 className="font-bold text-stone-900 text-sm leading-tight">TutorIA</h1>
@@ -335,7 +337,7 @@ export function ChatInterface() {
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="flex-shrink-0 text-stone-400 hover:text-stone-700 transition p-1"
+            className="flex-shrink-0 text-stone-400 hover:text-stone-700 transition p-1 rounded-lg hover:bg-stone-100"
             title={sidebarOpen ? "Recolher painel" : "Expandir painel"}
           >
             {sidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
