@@ -4,6 +4,53 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-05-02 — Export de Nota de Estudo — Apostila Acumulada (PDF + Markdown)
+
+**Commits:** `a2b5674`
+
+### O que foi feito
+
+#### 1. `StudyNoteModal.tsx` (novo componente)
+- ✅ Modal fullscreen (z-50, bg-white) que renderiza a resposta completa no formato **apostila de estudo**
+- ✅ **Capa da aula** — badges disciplina (`FSC1027`), tópico, semana do semestre; pergunta em destaque como blockquote; metadata (aluno, modelo, ⏱ tempo, `#sessionId`)
+- ✅ **5 seções de agentes** — borda lateral colorida (azul/verde/laranja/roxo/vermelho), cabeçalho tintado com badge de dimensão pedagógica, conteúdo renderizado com `ReactMarkdown + remarkMath + rehypeKatex` (equações LaTeX perfeitas no PDF)
+- ✅ **Rodapé da aula** — barras de progresso SM-2 por conceito (`████░ 67%`) via componente `MasteryBar`; temas semanais UFSM com badges de status (dominado/em progresso/novo)
+- ✅ Header e footer impressos em cada página via `print:flex` Tailwind (data, email do aluno, semana, sessão ID)
+- ✅ Botão "Imprimir / Salvar PDF" chama `window.print()` — funciona no mobile via "Compartilhar → Imprimir → Salvar PDF"
+
+#### 2. `ChatInterface.tsx` — export enriquecido + guest lock
+- ✅ `downloadMarkdown()` reescrito — gera `.md` com **YAML frontmatter completo** para Obsidian:
+  `title`, `date`, `student`, `session_id`, `model`, `response_time_s`, `week`, `discipline`, `topic`, `tags`
+- ✅ Corpo do `.md` inclui seções dos agentes com ícones (`🔵 Intérprete`, `🟢 Solucionador`…), seção SM-2 e temas semanais UFSM
+- ✅ Arquivo nomeado `tutoria_YYYYMMDDHHMMSS.md` (timestamp legível, não Unix ms)
+- ✅ Botão **PDF** abre `StudyNoteModal` em vez de `window.print()` genérico
+- ✅ **Guest lock** — visitantes veem botões `.md` e `PDF` com ícone `Lock` (lucide) + tooltip "Entre para exportar"; clicar redireciona para `/login`
+- ✅ Estado `showStudyNote` adicionado; modal recebe todas as props necessárias (including `due`, `weeklyTopics`, `currentWeek`)
+
+#### 3. `globals.css` — Print CSS
+- ✅ `@media print` reescrito: oculta `body > *` completamente e exibe somente `.study-note-print`
+- ✅ `@page { size: A4 portrait; margin: 16mm 14mm }` para encadernação
+- ✅ `print-color-adjust: exact` nas classes de fundo colorido (agentes) — preserva tintagem no PDF
+- ✅ `break-inside: avoid` nas sections — impede headers de ficarem sozinhos no fim de página
+- ✅ Utilitários `print:hidden` / `hidden print:flex` mapeados para ocultar/exibir elementos corretamente
+
+### Conceito pedagógico — Apostila Acumulada
+O YAML frontmatter padronizado (`date`, `week`, `discipline`, `topic`) permite ao aluno abrir múltiplos `.md` no **Obsidian** e obtê-los ordenados como apostila. Cada PDF tem header com "Semana X do Semestre" para encadernação física. A estrutura de 5 agentes é consistente entre todas as notas.
+
+### Decisões/Desvios
+- Optou-se por **Print CSS + modal** em vez de jsPDF/html2canvas — KaTeX renderiza LaTeX diretamente no DOM; capturar canvas perderia qualidade das equações
+- Guest lock **não desabilita** os botões (para não confundir que a feature existe) — mostra cadeado e redireciona; melhor UX para conversão
+- `MasteryBar` embutido no modal (não exportado separadamente) — usada apenas aqui; sem abstração prematura
+
+### Status
+🟢 **COMPLETO** — Commitado e pushed em `claude/investigate-api-slowness-7lFm3`
+
+### Próximo Passo
+- Verificar build do Next.js sem erros de tipo (`npm run build` no frontend)
+- Testar impressão no Chrome/Safari com equações LaTeX reais
+
+---
+
 ## 📅 2026-05-02 — Performance & UX: Token Streaming + Agentes Paralelos + 4 Melhorias de UX
 
 **Commits:** pendente (branch `claude/investigate-api-slowness-7lFm3`)
