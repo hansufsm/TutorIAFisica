@@ -148,7 +148,8 @@ def log_session(
     model_used: str,
     fallback: bool,
     agents_output: dict,
-    response_time_ms: int = None
+    response_time_ms: int = None,
+    embedding: list = None,
 ) -> str:
     """Salva log completo da sessão e retorna o session_id."""
     sb = get_supabase()
@@ -162,8 +163,25 @@ def log_session(
     }
     if response_time_ms is not None:
         payload["response_time_ms"] = response_time_ms
+    if embedding is not None:
+        payload["embedding"] = embedding
     result = sb.table("session_log").insert(payload).execute()
     return result.data[0]["id"] if result.data else None
+
+
+def get_similar_sessions(student_id: str, embedding: list, limit: int = 3) -> list[dict]:
+    """Busca sessões anteriores semanticamente similares via pgvector."""
+    try:
+        sb = get_supabase()
+        result = sb.rpc("match_sessions", {
+            "p_student_id": student_id,
+            "p_embedding": embedding,
+            "p_limit": limit,
+        }).execute()
+        return result.data or []
+    except Exception as e:
+        print(f"[RAG] Similarity search failed: {e}")
+        return []
 
 
 def log_broken_link(

@@ -54,6 +54,9 @@ class PhysicsState:
         self.detected_misconceptions: list = []
         self.due_concepts: list = []
 
+        # Sprint 3: Long-term RAG — contexto de sessões anteriores similares
+        self.prior_sessions_context: str = ""
+
     @property
     def teacher_notes(self) -> str:
         """Compatibilidade: retorna a concatenação de todas as notas."""
@@ -579,6 +582,8 @@ class PhysicsOrchestrator:
         state.detected_misconceptions = MisconceptionDetector.check(input_data)
         mc_block = MisconceptionDetector.build_context_block(state.detected_misconceptions)
         interp_context = context + ("\n\n" + mc_block if mc_block else "")
+        if state.prior_sessions_context:
+            interp_context += f"\n\n{state.prior_sessions_context}"
 
         for event_type, event_data in self._attempt_model_call_stream("interpreter", input_data, interp_context, state.image_input):
             if event_type == "token":

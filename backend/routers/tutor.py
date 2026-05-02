@@ -8,8 +8,10 @@ from fastapi.responses import StreamingResponse
 from backend.schemas.request import TutorRequest, EvaluatorFeedback, BrokenLinkReport
 from backend.db.student_model import (
     get_or_create_student, get_concepts_due_for_review,
-    update_concept_after_answer, log_session, log_broken_link
+    update_concept_after_answer, log_session, log_broken_link,
+    get_similar_sessions,
 )
+from backend.db.embeddings import generate_embedding
 
 from core import PhysicsOrchestrator, PhysicsState
 from config import Config
@@ -45,6 +47,20 @@ async def ask_tutor_stream(req: TutorRequest):
 
     due_before = get_concepts_due_for_review(student["id"])
     state.due_concepts = due_before[:5]
+
+    # Sprint 3: Long-term RAG — buscar sessões anteriores similares
+    question_embedding = await generate_embedding(req.question)
+    if question_embedding:
+        similar = get_similar_sessions(student["id"], question_embedding, limit=3)
+        if similar:
+            lines = ["### [HISTÓRICO RELEVANTE DO ALUNO — sessões anteriores similares]"]
+            for s in similar:
+                date_str = (s.get("created_at") or "")[:10]
+                lines.append(f"- **{s.get('topic') or 'Física'}** ({date_str}): \"{s.get('question', '')}\"")
+                interp = (s.get("agents_output") or {}).get("Intérprete", "")
+                if interp:
+                    lines.append(f"  ↳ Abordagem anterior: {interp[:200]}...")
+            state.prior_sessions_context = "\n".join(lines)
 
     async def generate():
         t0 = time.monotonic()
@@ -90,6 +106,7 @@ async def ask_tutor_stream(req: TutorRequest):
             fallback=state.fallback_occurred or False,
             agents_output=agents_dict,
             response_time_ms=response_time_ms,
+            embedding=question_embedding,
         )
         yield f"data: {json.dumps({'is_final': True, 'due_for_review': due_before[:3], 'session_id': session_id, 'response_time_ms': response_time_ms})}\n\n"
 
