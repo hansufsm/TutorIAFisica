@@ -6,13 +6,11 @@ import time
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from backend.schemas.request import TutorRequest, EvaluatorFeedback, BrokenLinkReport
-from backend.schemas.response import AgentOutput
 from backend.db.student_model import (
     get_or_create_student, get_concepts_due_for_review,
     update_concept_after_answer, log_session, log_broken_link
 )
 
-# Importa lógica Python INTACTA
 from core import PhysicsOrchestrator, PhysicsState
 from config import Config
 
@@ -25,14 +23,6 @@ AGENT_META = {
     "Curador":      {"color": "#A855F7", "dimension": "Contextual"},
     "Avaliador":    {"color": "#EF4444", "dimension": "Formativa"},
 }
-
-FIELD_MAP = [
-    ("Intérprete",   "pergunta_socratica"),
-    ("Solucionador", "solution_steps"),
-    ("Visualizador", "code_snippet"),
-    ("Curador",      "mapa_mental_markdown"),
-    ("Avaliador",    "quiz_question"),
-]
 
 
 def _build_state(req: TutorRequest) -> tuple[PhysicsState, str, str]:
@@ -49,14 +39,10 @@ def _build_state(req: TutorRequest) -> tuple[PhysicsState, str, str]:
 
 @router.post("/ask/stream")
 async def ask_tutor_stream(req: TutorRequest):
-    """
-    Streaming SSE: envia cada agente assim que termina.
-    Requer process_streaming() em src/core.py (ver Etapa 3.2).
-    """
+    """SSE streaming: emite tokens individuais durante geração e agent_complete ao finalizar cada agente."""
     student = get_or_create_student(req.student_email, req.student_name)
     state, model_id, api_key = _build_state(req)
 
-    # Busca conceitos SM-2 vencidos antes do pipeline para o Avaliador usá-los
     due_before = get_concepts_due_for_review(student["id"])
     state.due_concepts = due_before[:5]
 
@@ -65,37 +51,35 @@ async def ask_tutor_stream(req: TutorRequest):
         orchestrator = PhysicsOrchestrator()
         agents_dict = {}
 
-        # Tentar usar process_streaming se disponível
-        if hasattr(orchestrator, 'process_streaming'):
-            for name, result_content in orchestrator.process_streaming(
-                state, model_id=model_id, api_key=api_key
-            ):
-                meta = AGENT_META.get(name, {"color": "#666", "dimension": ""})
+        for event in orchestrator.process_streaming(
+            state, model_id=model_id, api_key=api_key, quick_mode=req.quick_mode
+        ):
+            event_type = event.get("type")
+            agent_name = event.get("agent_name", "")
+            meta = AGENT_META.get(agent_name, {"color": "#666", "dimension": ""})
+
+            if event_type == "token":
                 chunk = {
-                    "agent_name": name,
+                    "type": "token",
+                    "agent_name": agent_name,
+                    "token": event.get("token", ""),
                     "color": meta["color"],
                     "dimension": meta["dimension"],
-                    "content": result_content,
+                }
+                yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+
+            elif event_type == "agent_complete":
+                content = event.get("content", "")
+                agents_dict[agent_name] = content
+                chunk = {
+                    "type": "agent_complete",
+                    "agent_name": agent_name,
+                    "color": meta["color"],
+                    "dimension": meta["dimension"],
+                    "content": content,
                     "is_final": False,
                 }
-                agents_dict[name] = result_content
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
-        else:
-            # Fallback: usar process() normal
-            result = orchestrator.process(state, model_id=model_id, api_key=api_key)
-            for name, field in FIELD_MAP:
-                content = getattr(result, field, None)
-                if content:
-                    meta = AGENT_META.get(name, {"color": "#666", "dimension": ""})
-                    chunk = {
-                        "agent_name": name,
-                        "color": meta["color"],
-                        "dimension": meta["dimension"],
-                        "content": content,
-                        "is_final": False,
-                    }
-                    agents_dict[name] = content
-                    yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
         response_time_ms = int((time.monotonic() - t0) * 1000)
         session_id = log_session(

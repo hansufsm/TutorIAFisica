@@ -8,6 +8,7 @@ class TutorRequest(BaseModel):
     model_name: str = "Gemini 3.0 Preview"
     image_base64: Optional[str] = None
     image_media_type: Optional[str] = None
+    quick_mode: bool = False
 
 class EvaluatorFeedback(BaseModel):
     student_email: str

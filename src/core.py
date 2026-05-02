@@ -5,7 +5,8 @@ import base64
 import io
 import requests as http_requests
 import litellm
-from typing import Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Any, Optional, Generator
 from dotenv import load_dotenv
 from config import Config
 from utils.pcloud_manager import PCloudManager
@@ -271,6 +272,41 @@ class TutorIAAgent:
         except Exception as e:
             raise RuntimeError(f"Unexpected error with {model_id}: {str(e)}") from e
 
+    def ask_stream(self, prompt: str, context: str = "", image: Any = None, model_id: str = None, api_key: str = None) -> Generator[str, None, None]:
+        """Stream tokens from LLM. Yields individual string tokens."""
+        if not model_id:
+            model_id = Config.get_model_id(Config.DEFAULT_MODEL_DISPLAY_NAME)
+
+        if model_id and model_id.startswith("manus/"):
+            yield self._ask_manus(prompt, context=context, api_key=api_key)
+            return
+
+        context_block = f"\n\n### MATERIAL DE REFERÊNCIA (use prioritariamente):\n{context}" if context.strip() else ""
+        messages = [
+            {"role": "system", "content": f"{self.system_instruction}{context_block}"},
+            {"role": "user", "content": prompt}
+        ]
+
+        if image and Config.is_model_multimodal(Config.get_model_display_name_by_id(model_id)):
+            buf = io.BytesIO()
+            image.save(buf, format="JPEG")
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            messages[1]["content"] = [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+            ]
+
+        try:
+            response = litellm.completion(model=model_id, messages=messages, api_key=api_key, timeout=45, stream=True)
+            for chunk in response:
+                token = chunk.choices[0].delta.content or ""
+                if token:
+                    yield token
+        except (litellm.RateLimitError, litellm.AuthenticationError, litellm.APIError, litellm.Timeout) as e:
+            raise RuntimeError(f"{type(e).__name__} for {model_id}: {e}") from e
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error with {model_id}: {e}") from e
+
 class PhysicsOrchestrator:
     def __init__(self, selected_model_display_name: str = None, runtime_keys: Dict[str, str] = None):
         self.selected_model_display_name = selected_model_display_name or "Gemini 3.0 Preview"
@@ -290,6 +326,57 @@ class PhysicsOrchestrator:
             "curator": TutorIAAgent("Curador", f"Forneça aplicações reais, links acadêmicos e mapa mental. {source_attribution} {output_format}"),
             "evaluator": TutorIAAgent("Avaliador", f"Crie desafios pedagógicos curtos e dê feedback socrático. {source_attribution} {output_format}")
         }
+
+    def _build_preferred_order(self, image: Any = None) -> list:
+        """Returns model display names in preference order, skipping Manus and models without image support."""
+        preferred = []
+        if self.selected_model_display_name and self.selected_model_display_name in Config.AVAILABLE_MODELS:
+            if self.selected_model_display_name != "Manus":
+                preferred.append(self.selected_model_display_name)
+        for name in Config.MODEL_PREFERENCE_ORDER:
+            if name not in preferred and name != "Manus":
+                preferred.append(name)
+        return preferred
+
+    def _attempt_model_call_stream(self, agent_name: str, prompt: str, context: str, image: Any = None) -> Generator:
+        """
+        Generator that streams tokens from the best available model.
+        Yields ("token", str) for each token and ("done", (content, model_name, is_fallback)) at end.
+        Falls back to next model if streaming fails before any token is emitted.
+        """
+        preferred_order = self._build_preferred_order(image)
+        agent = self.agents[agent_name]
+        last_error = "No models available"
+
+        for model_display_name in preferred_order:
+            model_info = Config.AVAILABLE_MODELS.get(model_display_name)
+            if not model_info: continue
+            if image and not model_info.get("multimodal", False): continue
+            if not Config.check_key_availability_for_model(model_display_name, self.runtime_keys): continue
+
+            current_model_id = model_info["id"]
+            key_name = Config.get_provider_key_name(model_display_name)
+            api_key = self.runtime_keys.get(key_name) or os.getenv(key_name) if key_name else None
+            is_fallback = (model_display_name != self.selected_model_display_name)
+            collected: list[str] = []
+
+            try:
+                for token in agent.ask_stream(prompt, context=context, image=image, model_id=current_model_id, api_key=api_key):
+                    collected.append(token)
+                    yield ("token", token)
+                full_content = "".join(collected)
+                yield ("done", (full_content, model_display_name, is_fallback))
+                return
+            except RuntimeError as e:
+                last_error = str(e)
+                print(f"[*] Stream failed for {model_display_name}: {last_error}")
+                if not collected:
+                    continue
+                # Partial content already streamed — surface what we have
+                yield ("done", ("".join(collected), model_display_name, is_fallback))
+                return
+
+        yield ("done", (f"Erro: todos os modelos falharam. {last_error}", None, True))
 
     def _attempt_model_call(self, agent_name: str, prompt: str, context: str, image: Any = None) -> tuple[str, Optional[str], bool]:
         """Tenta chamar modelos na ordem de preferência, implementando fallback automático.
@@ -459,10 +546,17 @@ class PhysicsOrchestrator:
             pass
         return state
 
-    def process_streaming(self, state: PhysicsState, model_id: str = None, api_key: str = None):
+    def process_streaming(self, state: PhysicsState, model_id: str = None, api_key: str = None, quick_mode: bool = False) -> Generator:
         """
-        Versão generator (streaming) para SSE.
-        Faz yield (agent_name, content) após cada agente.
+        Generator for SSE streaming. Yields dicts:
+          {"type": "token",          "agent_name": str, "token": str}
+          {"type": "agent_complete", "agent_name": str, "content": str,
+           "model_used": str|None, "is_fallback": bool}
+        Phases:
+          1. Intérprete — token-streamed
+          2. (quick_mode=True) → Solucionador only, then return
+          3. Solucionador + Visualizador + Curador — parallel (ThreadPoolExecutor)
+          4. Avaliador — token-streamed
         """
         if model_id:
             model_name = Config.get_model_display_name_by_id(model_id)
@@ -480,64 +574,73 @@ class PhysicsOrchestrator:
         input_data = state.raw_input
         state.sync_external_data()
 
-        # Intérprete — detecta misconceptions e injeta no contexto
+        # --- Phase 1: Intérprete (token streaming) ---
         context = state.build_context() or ""
         state.detected_misconceptions = MisconceptionDetector.check(input_data)
         mc_block = MisconceptionDetector.build_context_block(state.detected_misconceptions)
-        response, model_name_used, fb = self._attempt_model_call(
-            "interpreter", input_data, context + ("\n\n" + mc_block if mc_block else ""), state.image_input
-        )
-        state.pergunta_socratica = response
-        if "," in response:
-            state.concepts = [c.strip() for c in response.split("\n")[0].split(",")]
-        else:
-            state.concepts = ["Física Geral"]
-        state._check_ufsm_syllabus()
-        if fb: state.fallback_occurred = True
-        state.used_model_display_name = model_name_used
-        yield ("Intérprete", response)
-        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+        interp_context = context + ("\n\n" + mc_block if mc_block else "")
 
-        # Solucionador
+        for event_type, event_data in self._attempt_model_call_stream("interpreter", input_data, interp_context, state.image_input):
+            if event_type == "token":
+                yield {"type": "token", "agent_name": "Intérprete", "token": event_data}
+            elif event_type == "done":
+                content, model_name_used, fb = event_data
+                state.pergunta_socratica = content
+                state.concepts = [c.strip() for c in content.split("\n")[0].split(",")] if "," in content else ["Física Geral"]
+                state._check_ufsm_syllabus()
+                if fb: state.fallback_occurred = True
+                state.used_model_display_name = model_name_used
+                yield {"type": "agent_complete", "agent_name": "Intérprete", "content": content, "model_used": model_name_used, "is_fallback": fb}
+
         context = state.build_context() or ""
-        response, model_name_used, fb = self._attempt_model_call("solver", input_data, context, state.image_input)
-        state.solution_steps = response
-        if fb: state.fallback_occurred = True
-        if model_name_used: state.used_model_display_name = model_name_used
-        yield ("Solucionador", response)
-        time.sleep(Config.DELAY_BETWEEN_AGENTS)
 
-        # Visualizador
-        response, model_name_used, fb = self._attempt_model_call("visualizer", input_data, context, state.image_input)
-        state.code_snippet = response.replace("```python", "").replace("```", "").strip()
-        if fb: state.fallback_occurred = True
-        if model_name_used: state.used_model_display_name = model_name_used
-        yield ("Visualizador", response)
-        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+        # --- Quick mode: only Solver, then done ---
+        if quick_mode:
+            response, model_name_used, fb = self._attempt_model_call("solver", input_data, context, state.image_input)
+            state.solution_steps = response
+            if fb: state.fallback_occurred = True
+            if model_name_used: state.used_model_display_name = model_name_used
+            yield {"type": "agent_complete", "agent_name": "Solucionador", "content": response, "model_used": model_name_used, "is_fallback": fb}
+            return
 
-        # Curador
-        response, model_name_used, fb = self._attempt_model_call("curator", input_data, context, state.image_input)
-        state.mapa_mental_markdown = response
-        if fb: state.fallback_occurred = True
-        if model_name_used: state.used_model_display_name = model_name_used
-        yield ("Curador", response)
-        time.sleep(Config.DELAY_BETWEEN_AGENTS)
+        # --- Phase 2: Parallel — Solucionador, Visualizador, Curador ---
+        _KEY_TO_DISPLAY = {"solver": "Solucionador", "visualizer": "Visualizador", "curator": "Curador"}
 
-        # Avaliador — prioriza conceitos SM-2 vencidos e misconceptions detectadas
+        def _run_parallel(agent_key: str):
+            resp, mn, fb = self._attempt_model_call(agent_key, input_data, context, state.image_input)
+            if agent_key == "visualizer":
+                resp = resp.replace("```python", "").replace("```", "").strip()
+            return agent_key, resp, mn, fb
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {executor.submit(_run_parallel, k): k for k in ["solver", "visualizer", "curator"]}
+            for future in as_completed(futures):
+                agent_key, content, model_name_used, fb = future.result()
+                if agent_key == "solver":      state.solution_steps = content
+                elif agent_key == "visualizer": state.code_snippet = content
+                elif agent_key == "curator":    state.mapa_mental_markdown = content
+                if fb: state.fallback_occurred = True
+                if model_name_used: state.used_model_display_name = model_name_used
+                yield {"type": "agent_complete", "agent_name": _KEY_TO_DISPLAY[agent_key], "content": content, "model_used": model_name_used, "is_fallback": fb}
+
+        # --- Phase 3: Avaliador (token streaming) ---
         evaluator_context = context
         if state.due_concepts:
-            topics = ", ".join(
-                c.get("topic") or c.get("concept_id", "") for c in state.due_concepts[:3]
-            )
+            topics = ", ".join(c.get("topic") or c.get("concept_id", "") for c in state.due_concepts[:3])
             evaluator_context += f"\n\n### [CONCEITOS EM ATRASO DE REVISÃO — priorize estes no desafio]\n{topics}"
         if state.detected_misconceptions:
             mc_block = MisconceptionDetector.build_context_block(state.detected_misconceptions)
             evaluator_context += f"\n\n{mc_block}"
-        response, model_name_used, fb = self._attempt_model_call("evaluator", input_data, evaluator_context, state.image_input)
-        state.quiz_question = response
-        if fb: state.fallback_occurred = True
-        if model_name_used: state.used_model_display_name = model_name_used
-        yield ("Avaliador", response)
+
+        for event_type, event_data in self._attempt_model_call_stream("evaluator", input_data, evaluator_context, state.image_input):
+            if event_type == "token":
+                yield {"type": "token", "agent_name": "Avaliador", "token": event_data}
+            elif event_type == "done":
+                content, model_name_used, fb = event_data
+                state.quiz_question = content
+                if fb: state.fallback_occurred = True
+                if model_name_used: state.used_model_display_name = model_name_used
+                yield {"type": "agent_complete", "agent_name": "Avaliador", "content": content, "model_used": model_name_used, "is_fallback": fb}
 
 if __name__ == "__main__":
     # --- Teste Básico de Fallback ---
