@@ -260,7 +260,7 @@ class TutorIAAgent:
             print(f"[!] Aviso: Imagem fornecida, mas modelo '{model_id}' não é multimodal.")
 
         try:
-            response = litellm.completion(model=model_id, messages=messages, api_key=api_key)
+            response = litellm.completion(model=model_id, messages=messages, api_key=api_key, timeout=45)
             return response.choices[0].message.content
         except litellm.RateLimitError as e:
             raise RuntimeError(f"Rate limit exceeded for {model_id}: {e}") from e
@@ -350,7 +350,7 @@ class PhysicsOrchestrator:
                     last_error_message = f"Model {model_display_name} ({current_model_id}) returned an error: {response_text}"
                     print(f"[*] {last_error_message}")
 
-            except (litellm.RateLimitError, litellm.AuthenticationError, litellm.APIError) as e:
+            except (litellm.RateLimitError, litellm.AuthenticationError, litellm.APIError, litellm.Timeout) as e:
                 last_error_message = f"{type(e).__name__} for {model_display_name} ({current_model_id}). Trying next model. Error: {str(e)}"
                 print(f"[*] {last_error_message}")
             except Exception as e:
