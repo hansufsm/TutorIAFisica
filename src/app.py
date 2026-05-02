@@ -3,6 +3,7 @@ from core import PhysicsOrchestrator, TutorIAAgent, PhysicsState
 from pypdf import PdfReader
 import os, re
 import litellm
+import streamlit.components.v1 as components
 from PIL import Image
 from config import Config
 from models.student_model import StudentModel
@@ -450,7 +451,7 @@ def main():
             st.info(f"📅 **{len(due)} conceito(s) para revisar hoje:** {due_list}")
 
     # --- ENTRADA DO ALUNO ---
-    enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: calcule o tempo de queda de uma bola de 2kg largada do repouso a 4,3 metros de altura")
+    enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: Uma bola de 2 kg é solta do repouso a 4,3 m de altura na superfície da Lua (g = 1,62 m/s²). Quanto tempo leva para atingir o solo?")
 
     if st.button("🚀 Iniciar Análise do Esquadrão"):
         if enunciado or input_image:
@@ -503,6 +504,7 @@ def main():
                         on_progress=st.write
                     )
                     st.session_state.last_result = res
+                    st.session_state.new_result = True
 
                     # Update Student Model (apenas para Modo IA)
                     if "student_model" in st.session_state and st.session_state.student_model and res.concepts:
@@ -577,6 +579,17 @@ def main():
             st.markdown(f'<div class="ufsm-badge">🏛️ UFSM: {res.ufsm_alignment["codigo"]} - {res.ufsm_alignment["nome"]}</div>', unsafe_allow_html=True)
 
         tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧩 Diálogo Socrático", "📐 Solução Matemática", "🖼️ Visualização", "📚 Contexto UFSM", "📊 Meu Progresso"])
+
+        # Foca na primeira aba sempre que uma nova resposta chegar
+        if st.session_state.pop("new_result", False):
+            components.html("""
+            <script>
+                setTimeout(function() {
+                    var tabs = window.parent.document.querySelectorAll('[role="tab"]');
+                    if (tabs.length > 0) tabs[0].click();
+                }, 150);
+            </script>
+            """, height=0)
 
         with tab1:
             st.markdown('<div class="agent-box border-interprete">', unsafe_allow_html=True)
