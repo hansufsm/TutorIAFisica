@@ -5,6 +5,7 @@ import { AgentPanel } from "./AgentPanel";
 import { VoiceInput } from "./VoiceInput";
 import { askTutorStream, fetchModels, AgentOutput, DueReview } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
 import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap, LogOut } from "lucide-react";
 
 const MODELS_FALLBACK = ["Gemini 2.0 Flash", "DeepSeek Chat"];
@@ -362,10 +363,24 @@ export function ChatInterface() {
               <MessageSquare size={16} />
               <span>Histórico</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-stone-600 hover:bg-stone-100 text-sm transition">
-              <BookOpen size={16} />
-              <span>Biblioteca</span>
-            </button>
+            {user ? (
+              <Link
+                href="/portfolio"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-stone-600 hover:bg-stone-100 text-sm transition"
+              >
+                <BookOpen size={16} />
+                <span>Caderno</span>
+              </Link>
+            ) : (
+              <button
+                onClick={() => router.push("/login")}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-stone-400 hover:bg-stone-100 text-sm transition"
+                title="Entre para acessar seu caderno"
+              >
+                <BookOpen size={16} />
+                <span>Caderno</span>
+              </button>
+            )}
           </nav>
         )}
 

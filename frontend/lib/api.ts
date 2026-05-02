@@ -144,6 +144,45 @@ export async function getStudentProgress(email: string) {
   return res.json();
 }
 
+export interface ConceptStatus {
+  concept_id: string;
+  topic: string;
+  status: "mastered" | "developing" | "not_started";
+  mastery_level: number;
+  last_reviewed: string | null;
+  next_review: string | null;
+  date_mastered: string | null;
+}
+
+export interface SessionEntry {
+  id: string;
+  question: string;
+  topic: string;
+  model_used: string;
+  response_time_ms: number | null;
+  created_at: string;
+}
+
+export interface PortfolioData {
+  sessions: SessionEntry[];
+  concepts: ConceptStatus[];
+  stats: {
+    total_sessions: number;
+    total_concepts: number;
+    mastered: number;
+    developing: number;
+    due_count: number;
+  };
+}
+
+export async function getStudentPortfolio(email: string, limit = 30): Promise<PortfolioData> {
+  const res = await fetch(
+    `${API}/student/${encodeURIComponent(email)}/portfolio?limit=${limit}`
+  );
+  if (!res.ok) throw new Error(`Failed to fetch portfolio: ${res.status}`);
+  return res.json();
+}
+
 export async function submitFeedback(
   studentEmail: string,
   conceptId: string,

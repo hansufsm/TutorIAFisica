@@ -184,6 +184,37 @@ def log_broken_link(
     }).execute()
 
 
+def get_student_portfolio(student_id: str, limit: int = 30) -> dict:
+    """Retorna dados completos para a página /portfolio: sessões recentes + concepts."""
+    sb = get_supabase()
+
+    sessions = sb.table("session_log") \
+        .select("id, question, topic, model_used, response_time_ms, created_at") \
+        .eq("student_id", student_id) \
+        .order("created_at", desc=True) \
+        .limit(limit) \
+        .execute().data or []
+
+    concepts = sb.table("concept_status") \
+        .select("concept_id, topic, status, mastery_level, last_reviewed, next_review, date_mastered") \
+        .eq("student_id", student_id) \
+        .execute().data or []
+
+    due = get_concepts_due_for_review(student_id)
+
+    return {
+        "sessions": sessions,
+        "concepts": concepts,
+        "stats": {
+            "total_sessions": len(sessions),
+            "total_concepts": len(concepts),
+            "mastered": sum(1 for c in concepts if c["status"] == "mastered"),
+            "developing": sum(1 for c in concepts if c["status"] == "developing"),
+            "due_count": len(due),
+        },
+    }
+
+
 def get_student_progress(student_id: str) -> dict:
     """Retorna resumo do progresso para o painel do aluno."""
     sb = get_supabase()
