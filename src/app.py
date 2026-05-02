@@ -378,7 +378,7 @@ def main():
             st.info(f"📅 **{len(due)} conceito(s) para revisar hoje:** {due_list}")
 
     # --- ENTRADA DO ALUNO ---
-    enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: Explique a conservação de energia em um sistema...")
+    enunciado = st.text_area("Descreva sua dúvida de física:", height=100, placeholder="Ex: calcule o tempo de queda de uma bola de 2kg largada do repouso a 4,3 metros de altura")
 
     if st.button("🚀 Iniciar Análise do Esquadrão"):
         if enunciado or input_image:
@@ -440,9 +440,13 @@ def main():
                         st.session_state.last_seen_concept_id = re.sub(r"[^\w]", "_", res.concepts[0].lower()) if res.concepts else ""
 
                     if res.fallback_occurred:
-                        st.warning(f"Fallback ativo. Usando **{res.used_model_display_name}** para a resposta.")
+                        provider_label = Config.get_provider_label(res.used_model_display_name)
+                        model_id = Config.get_model_id(res.used_model_display_name)
+                        st.warning(f"⚠️ Fallback ativo — Respondido por **{res.used_model_display_name}** · {provider_label} · `{model_id}`")
                     elif res.used_model_display_name:
-                        st.success(f"Modelo ativo: **{res.used_model_display_name}**")
+                        provider_label = Config.get_provider_label(res.used_model_display_name)
+                        model_id = Config.get_model_id(res.used_model_display_name)
+                        st.success(f"🤖 Respondido por **{res.used_model_display_name}** · {provider_label} · `{model_id}`")
                     else:
                         st.error("Não foi possível obter uma resposta de nenhum modelo disponível.")
 

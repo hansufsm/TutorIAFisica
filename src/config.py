@@ -21,8 +21,8 @@ class Config:
     # Modelos Disponíveis via LiteLLM
     # Mapeamento de nomes amigáveis para IDs de modelo LiteLLM e suas capacidades
     AVAILABLE_MODELS = {
-        "DeepSeek Chat": {"id": "deepseek/deepseek-chat", "multimodal": False},
         "Gemini 2.0 Flash": {"id": "gemini/gemini-2.0-flash", "multimodal": True},
+        "DeepSeek Chat": {"id": "deepseek/deepseek-chat", "multimodal": False},
         "Manus": {"id": "manus/manus-1.6", "multimodal": False},
 
         # Modelos para implementação futura:
@@ -49,6 +49,23 @@ class Config:
     SYLLABUS_PATH = os.path.join(os.path.dirname(__file__), "../data/ufsm_syllabus.json")
     DELAY_BETWEEN_AGENTS = 0
     
+    @staticmethod
+    def get_provider_label(model_display_name: str) -> str:
+        """Retorna o nome do provedor/empresa para exibição ao estudante."""
+        model_info = Config.AVAILABLE_MODELS.get(model_display_name, {})
+        model_id = model_info.get("id", "")
+        provider = model_id.split("/")[0] if "/" in model_id else model_id
+        labels = {
+            "gemini": "Google",
+            "deepseek": "DeepSeek",
+            "openai": "OpenAI",
+            "anthropic": "Anthropic",
+            "perplexity": "Perplexity",
+            "xai": "xAI",
+            "manus": "Manus",
+        }
+        return labels.get(provider, provider.capitalize())
+
     @staticmethod
     def get_provider_key_name(model_display_name: str) -> str | None:
         """Mapeia o nome amigável do modelo para o nome da variável de ambiente da chave API."""
