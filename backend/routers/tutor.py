@@ -6,7 +6,7 @@ import time
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from backend.schemas.request import TutorRequest, EvaluatorFeedback, BrokenLinkReport
-from backend.schemas.response import TutorResponse, AgentOutput
+from backend.schemas.response import AgentOutput
 from backend.db.student_model import (
     get_or_create_student, get_concepts_due_for_review,
     update_concept_after_answer, log_session, log_broken_link
@@ -45,47 +45,6 @@ def _build_state(req: TutorRequest) -> tuple[PhysicsState, str, str]:
     key_name = Config.get_provider_key_name(req.model_name)
     api_key = os.getenv(key_name, "") if key_name else ""
     return state, model_id, api_key
-
-
-@router.post("/ask", response_model=TutorResponse)
-async def ask_tutor(req: TutorRequest):
-    """Roda pipeline completo, retorna quando todos os agentes terminam."""
-    student = get_or_create_student(req.student_email, req.student_name)
-    state, model_id, api_key = _build_state(req)
-
-    orchestrator = PhysicsOrchestrator()
-    result = orchestrator.process(state, model_id=model_id, api_key=api_key)
-
-    agents_out = []
-    agents_dict = {}
-    for name, field in FIELD_MAP:
-        content = getattr(result, field, None)
-        if content:
-            meta = AGENT_META[name]
-            agents_out.append(AgentOutput(
-                agent_name=name, color=meta["color"],
-                dimension=meta["dimension"], content=content
-            ))
-            agents_dict[name] = content
-
-    # Salvar sessão no Supabase
-    session_id = log_session(
-        student_id=student["id"],
-        question=req.question,
-        topic=getattr(result, "domain", ""),
-        model_used=result.used_model_display_name or req.model_name,
-        fallback=result.fallback_occurred or False,
-        agents_output=agents_dict,
-    )
-
-    due = get_concepts_due_for_review(student["id"])
-    return TutorResponse(
-        agents=agents_out,
-        used_model=result.used_model_display_name or req.model_name,
-        fallback_occurred=result.fallback_occurred or False,
-        due_for_review=due[:3],  # máximo 3 sugestões
-        session_id=session_id,
-    )
 
 
 @router.post("/ask/stream")

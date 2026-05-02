@@ -1,9 +1,0 @@
-Na pasta design_system temos o sistema de design de inteface grafica da web. Preciso que você entenda esse sistema de design para adaptar pro meu projeto, seguindo as orientações a seguir:
-- Nome do meu projeto: Tutor IA Física
-- Proposito: chat/App educacional
-- Interface:
-    - Deve ter um hero sobre TutoIAFífica, gere uma figura apropriada que relacione Física ou Ciências.
-    - A entrada do usuário vai via input chat tipo padrão Claude, Gemini, GTP ou Manus, com combo para escolher o modelo ou fonte de dados.
-- O que você vai fazer?
-Você vai aplicar esse design e tema no meu app.
-    

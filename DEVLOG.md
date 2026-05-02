@@ -4,6 +4,52 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-05-02 — Sanitização do Projeto + Frontend Prioritizado
+
+**Commits:** (este registro)
+
+### O que foi feito
+
+#### Arquivos mortos removidos
+- ✅ `test_hierarchy.py`, `test_integration.py`, `test_source_pipeline.py`, `test_ufsm_matching.py` — testes sem framework, nunca executados por CI
+- ✅ `legado.md` — arquivo histórico do projeto predecessor FisicaIA (12 KB)
+- ✅ `prompt_design.md.txt` — brief de design órfão (242 bytes)
+- ✅ `TutorIAFisica_DOCUMENTACAO_COMPLETA.md` — snapshot antigo, superado pelos docs/ individuais
+- ✅ `VERCEL_DEPLOY_GUIDE.md` (raiz) — substituído por `docs/DEPLOY_VERCEL.md`
+
+#### Documentação arquivada (movida para `docs/archived/`)
+- ✅ `docs/STACK_FUTURO.md` (1945 linhas) — roadmap da migração Streamlit→FastAPI+Next.js, que já está **concluída**
+- ✅ `docs/DEPLOYMENT_GUIDE.md` — superseded por `docs/DEPLOY_VERCEL.md`
+- ✅ `docs/DEPLOY_COMPLETE.md` — snapshot de mid-deploy, conteúdo coberto por `docs/DEPLOY_VERCEL.md`
+
+#### Código morto removido
+- ✅ `backend/routers/tutor.py`: removido `POST /tutor/ask` (endpoint síncrono não-streaming — frontend usa exclusivamente `POST /tutor/ask/stream`)
+- ✅ `backend/routers/tutor.py`: removido import de `TutorResponse` (só usado pelo endpoint deletado)
+- ✅ `requirements.txt`: removido `duckduckgo-search>=6.0.0` — nunca importado no código; busca web implementada via `requests` em `utils/web_searcher.py`
+
+#### Arquitetura clarificada
+- ✅ **Next.js** = interface primária do estudante (Vercel)
+- ✅ **Streamlit** = ferramenta offline de Modo Referência apenas — clarificado em `CLAUDE.md`
+- ✅ `CLAUDE.md` atualizado: descrição do sistema, routes do backend, seção de desenvolvimento
+
+#### Frontend
+- ✅ Toggle da sidebar: `«`/`»` → `PanelLeftClose`/`PanelLeftOpen` (lucide-react)
+- ✅ Seletor de modelo: `<select>` nativo → dropdown customizado com dot de status (🟢/⚫/🔴) aprendido por uso
+- ✅ Loading: contador de progresso "X/5 agentes" + textos mais claros
+
+### Decisões
+- **Modo Referência mantido no Streamlit** (não portado para Next.js) — feature tem valor offline único; portá-la requer endpoint backend `/tutor/reference` e UI no frontend. Fica no backlog.
+- `/transcribe` mantido no backend — VoiceInput.tsx usa o endpoint ativamente
+- `turtoriafisica.code-workspace` mantido — workspace VS Code, inofensivo
+
+### Status
+🟢 **COMPLETO**
+
+### Próximo Passo
+Avaliar port do Modo Referência para o Next.js (adiciona endpoint backend + UI) ou deprecar a feature
+
+---
+
 ## 📅 2026-05-02 — Investigação de Lentidão da API + UX do Seletor de Modelos
 
 **Commits:** `358a917` · `1f4c653` · `7d5bdba` · `52edf77`
@@ -651,21 +697,23 @@ Cron-job.org falhou com 401/400 (problemas de autenticação). Vercel tem cron j
 
 | Item | Esforço | Impacto | Status |
 |---|---|---|---|
-| Merge `claude/investigate-api-slowness-7lFm3` → `main` | 5 min | 🔴 **CRÍTICO** | ⏳ |
-| Verificar ícones de status em produção (Render + Streamlit) | 10 min | Alto | ⏳ |
-| **Deploy frontend no Vercel** | 10 min (manual) | Alto | ⏳ |
-| Testar SSE streaming em produção | 10 min | Alto | ⏳ |
-| Misconception detection | 1h | Médio | ⏳ |
+| Testar SSE streaming em produção (Vercel + Render) | 10 min | 🔴 Alto | ⏳ |
+| Port Modo Referência → Next.js + endpoint `/tutor/reference` | 4h | Médio | ⏳ |
+| Misconception detection (MisconceptionDetector em pipeline) | 1h | Médio | ⏳ |
 | StudentModel local ↔ Supabase unificação | 2h | Médio | ⏳ |
+| Deprecar `src/app.py` após port do Modo Referência | 30 min | Baixo | ⏳ |
 
 ---
 
 ## 📋 Referências Rápidas
 
-- **PROJECT_STATUS.md** — Mapa completo de STACK_FUTURO vs implementado
-- **CLAUDE.md** — Arquitectura, patterns, como estender
-- **DEVELOPER_MODO_REFERENCIA.md** — Design técnico do Modo Referência
+- **CLAUDE.md** — Arquitetura, patterns, como estender
+- **docs/DEPLOY_VERCEL.md** — Deploy do frontend no Vercel
+- **docs/DEVELOPER_MODO_REFERENCIA.md** — Design técnico do Modo Referência
+- **docs/DEVELOPER_SETUP.md** — Setup do ambiente de desenvolvimento
 - **Backend API docs** → `/health` no https://tutor-ia-fisica-api.onrender.com
+
+*Última atualização: 2026-05-02 — Sanitização do projeto*
 
 ---
 

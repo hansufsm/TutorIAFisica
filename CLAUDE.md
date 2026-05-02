@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **TutorIAFisica** is an AI-powered academic tutoring system for physics education at the university level. It orchestrates multiple specialized AI agents that work together through a shared state object to provide comprehensive explanations, mathematical solutions, visualizations, and formative assessment.
 
-The system is a **full-stack application** with three deployable tiers:
-- **Frontend**: Next.js SPA (React 18) deployed to Cloudflare Workers
+The system is a **full-stack application** with two deployable tiers + one offline tool:
+- **Frontend**: Next.js SPA (React 18) deployed to Vercel — **interface primária do estudante**
 - **Backend**: FastAPI REST API with SSE streaming deployed to Render.com
-- **Legacy**: Streamlit prototype (still functional, used for reference mode)
+- **Offline tool**: Streamlit (`src/app.py`) — usado apenas para **Modo Referência** (acesso ao ementário UFSM + notas do professor sem API). Não deployado; roda localmente.
 
 Core technologies: **LiteLLM** for multi-provider AI orchestration, **Supabase** for database (PostgreSQL) and auth, **React Markdown** + **KaTeX** for mathematical rendering, **Streamlit** for the offline reference interface.
 
@@ -29,7 +29,7 @@ Core technologies: **LiteLLM** for multi-provider AI orchestration, **Supabase**
 ┌─────────────────────────────────────────────────────────────┐
 │                  Backend (FastAPI)                           │
 │               Render.com (tutor-ia-fisica-api...)            │
-│  - POST /tutor/ask, GET /tutor/ask/stream (SSE)              │
+│  - POST /tutor/ask/stream (SSE), POST /tutor/transcribe       │
 │  - POST /tutor/feedback for SM-2 spaced repetition           │
 │  - Orchestrates PhysicsState + Agent Pipeline                │
 │  - Supabase integration for persistent StudentModel          │
@@ -201,25 +201,13 @@ npm install   # one-time
 npm run dev
 ```
 
-**Streamlit (Legacy, Offline Mode on http://localhost:8501):**
+**Streamlit (Modo Referência offline, http://localhost:8501):**
 ```bash
+# Usar apenas para acesso offline ao ementário UFSM + notas do professor.
+# NÃO é a interface principal — use o Next.js para desenvolvimento de UI.
 source venv/bin/activate
 cd src
 streamlit run app.py
-```
-
-### Running Tests
-
-```bash
-source venv/bin/activate
-# Run all tests
-pytest test_*.py -v
-
-# Run specific test file
-pytest test_integration.py -v
-
-# Run with coverage
-pytest test_*.py --cov=src --cov-report=html
 ```
 
 ### Linting & Type Checking
