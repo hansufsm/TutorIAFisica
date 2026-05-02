@@ -2,11 +2,52 @@ import streamlit as st
 from core import PhysicsOrchestrator, TutorIAAgent, PhysicsState
 from pypdf import PdfReader
 import os, re
+import litellm
 from PIL import Image
 from config import Config
 from models.student_model import StudentModel
 import pandas as pd
 import plotly.express as px
+
+# --- STATUS DAS APIs ---
+STATUS_ICONS = {
+    "ok":            "🟢",
+    "no_key":        "🔑",
+    "rate_limit":    "⚠️",
+    "auth_error":    "❌",
+    "no_connection": "🔴",
+}
+
+@st.cache_data(ttl=300, show_spinner=False)
+def check_api_status(model_display_name: str, runtime_keys: tuple) -> str:
+    runtime_keys_dict = dict(runtime_keys)
+    key_name = Config.get_provider_key_name(model_display_name)
+    if key_name:
+        api_key = runtime_keys_dict.get(key_name) or os.getenv(key_name)
+        if not api_key:
+            return "no_key"
+    else:
+        api_key = None
+
+    model_id = Config.get_model_id(model_display_name)
+    if model_id.startswith("manus/"):
+        return "ok"
+
+    try:
+        litellm.completion(
+            model=model_id,
+            messages=[{"role": "user", "content": "oi"}],
+            api_key=api_key,
+            max_tokens=1,
+            timeout=10,
+        )
+        return "ok"
+    except litellm.RateLimitError:
+        return "rate_limit"
+    except litellm.AuthenticationError:
+        return "auth_error"
+    except Exception:
+        return "no_connection"
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="TutorIAFisica - Multi-Model", layout="wide", page_icon="🌌")
@@ -268,16 +309,47 @@ def main():
         st.markdown("## ⚙️ Configurações de IA")
 
         # Seleção de Modelo
+        # Coleta chaves runtime já inseridas (para probing de status da API)
+        _runtime_keys_for_probe: list[tuple[str, str]] = []
+        for _mn in Config.AVAILABLE_MODELS:
+            _kn = Config.get_provider_key_name(_mn)
+            if _kn and not os.getenv(_kn):
+                _val = st.session_state.get(f"runtime_key_{_kn}", "")
+                if _val:
+                    _runtime_keys_for_probe.append((_kn, _val))
+        runtime_keys_tuple = tuple(_runtime_keys_for_probe)
+
         available_model_names = list(Config.AVAILABLE_MODELS.keys())
         default_model_name = Config.DEFAULT_MODEL_DISPLAY_NAME
-        default_index = available_model_names.index(default_model_name) if default_model_name in available_model_names else 0
 
-        selected_model_display_name = st.selectbox(
+        # Constrói labels com ícones de status
+        label_to_name: dict[str, str] = {}
+        labeled_options: list[str] = []
+        for _name in available_model_names:
+            _status = check_api_status(_name, runtime_keys_tuple)
+            _icon = STATUS_ICONS.get(_status, "🔴")
+            _label = f"{_icon} {_name}"
+            label_to_name[_label] = _name
+            labeled_options.append(_label)
+
+        default_label = next(
+            (lbl for lbl, nm in label_to_name.items() if nm == default_model_name),
+            labeled_options[0]
+        )
+        default_index = labeled_options.index(default_label)
+
+        selected_label = st.selectbox(
             "Escolha o Motor de IA:",
-            available_model_names,
+            labeled_options,
             index=default_index,
             key="model_selector"
         )
+
+        # Extrai o nome limpo (sem ícone) para uso interno
+        selected_model_display_name = label_to_name[selected_label]
+
+        # Legenda dos ícones
+        st.caption("🟢 ativo · 🔑 sem chave · ⚠️ sem créditos · ❌ chave inválida · 🔴 sem conexão")
 
         # Persistência da escolha do modelo na sessão
         if "selected_model_display_name" not in st.session_state:
@@ -287,7 +359,7 @@ def main():
         if current_selection_in_state != selected_model_display_name:
             st.session_state.selected_model_display_name = selected_model_display_name
             st.toast(f"✅ Modelo atualizado para: **{selected_model_display_name}**")
-            st.rerun() # Reinicia a página para aplicar a mudança (ex: desabilitar upload de imagem)
+            st.rerun()
 
         # Gerenciamento de Chaves API
         keys_to_prompt_names = []
