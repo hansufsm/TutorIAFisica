@@ -6,7 +6,7 @@ import { VoiceInput } from "./VoiceInput";
 import { askTutorStream, fetchModels, AgentOutput, DueReview, getWeeklySuggestion, WeeklyTopic } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap, LogOut, Lock } from "lucide-react";
+import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap, LogOut, Lock, LogIn, User } from "lucide-react";
 import { StudyNoteModal } from "./StudyNoteModal";
 
 const MODELS_FALLBACK = ["Gemini 2.0 Flash", "DeepSeek Chat"];
@@ -504,28 +504,52 @@ export function ChatInterface() {
         </div>
 
         {/* User Info / Login CTA */}
-        <div className={`border-t pt-3 mt-3 ${!sidebarOpen ? "hidden" : ""}`} style={{ borderColor: "var(--border)" }}>
+        <div className="border-t pt-3 mt-3" style={{ borderColor: "var(--border)" }}>
           {user ? (
-            <>
-              <p className="text-xs text-stone-400 truncate mb-1.5" title={user.email}>{user.email}</p>
+            sidebarOpen ? (
+              <>
+                <div className="flex items-center gap-2 mb-1.5 px-1">
+                  <User size={13} className="text-stone-400 flex-shrink-0" />
+                  <p className="text-xs text-stone-400 truncate" title={user.email}>{user.email}</p>
+                </div>
+                <button
+                  onClick={signOut}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-700 text-xs transition"
+                >
+                  <LogOut size={13} />
+                  Sair
+                </button>
+              </>
+            ) : (
               <button
                 onClick={signOut}
-                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-700 text-xs transition"
+                className="w-full flex justify-center py-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition"
+                title={`Sair (${user.email})`}
               >
-                <LogOut size={13} />
-                Sair
+                <LogOut size={16} />
               </button>
-            </>
+            )
           ) : (
-            <>
-              <p className="text-xs text-stone-400 mb-2">Modo visitante — progresso não salvo.</p>
+            sidebarOpen ? (
+              <>
+                <p className="text-xs text-stone-400 mb-2">Modo visitante — progresso não salvo.</p>
+                <button
+                  onClick={() => router.push("/login")}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition"
+                >
+                  <LogIn size={13} />
+                  Entrar para salvar progresso
+                </button>
+              </>
+            ) : (
               <button
                 onClick={() => router.push("/login")}
-                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition"
+                className="w-full flex justify-center py-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 transition"
+                title="Entrar para salvar progresso"
               >
-                Entrar para salvar progresso
+                <LogIn size={16} />
               </button>
-            </>
+            )
           )}
         </div>
       </aside>
