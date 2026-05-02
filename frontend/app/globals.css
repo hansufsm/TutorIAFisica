@@ -111,11 +111,54 @@ input:focus, textarea:focus, select:focus {
   @apply bg-gradient-to-r from-indigo-600 via-purple-500 to-indigo-600 bg-clip-text text-transparent;
 }
 
-/* Print styles */
+/* ── Print styles ── */
+
+/* When the study note modal is open, hide everything else */
 @media print {
-  aside, header, .glass-sm, [data-no-print] { display: none !important; }
-  main { display: block !important; overflow: visible !important; }
-  .print-content { break-inside: avoid; page-break-inside: avoid; }
-  body { background: white !important; color: black !important; font-size: 11pt; }
-  .animate-slide-in-up { animation: none !important; }
+  /* Hide the entire app shell when printing the study note */
+  body > * { display: none !important; }
+
+  /* Show only the study note */
+  .study-note-print,
+  .study-note-print * { display: revert !important; }
+
+  /* Reset the modal positioning for print */
+  .study-note-print {
+    position: static !important;
+    overflow: visible !important;
+    z-index: auto !important;
+  }
+
+  /* Page setup */
+  @page {
+    margin: 16mm 14mm;
+    size: A4 portrait;
+  }
+
+  /* Typography */
+  body {
+    background: white !important;
+    color: #1c1917 !important;
+    font-size: 10.5pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Prevent section headers from breaking away from their content */
+  section { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Remove box shadows for print */
+  * { box-shadow: none !important; }
+
+  /* Keep background colors (agent section tints) */
+  .bg-indigo-50, .bg-green-50, .bg-orange-50, .bg-purple-50,
+  .bg-red-50, .bg-amber-50, .bg-blue-50, .bg-stone-100 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide print-only show/hide controls */
+  .print\:hidden { display: none !important; }
+  .hidden.print\:flex,
+  .hidden.print\:block { display: flex !important; }
 }

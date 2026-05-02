@@ -6,7 +6,8 @@ import { VoiceInput } from "./VoiceInput";
 import { askTutorStream, fetchModels, AgentOutput, DueReview, getWeeklySuggestion, WeeklyTopic } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap, LogOut } from "lucide-react";
+import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap, LogOut, Lock } from "lucide-react";
+import { StudyNoteModal } from "./StudyNoteModal";
 
 const MODELS_FALLBACK = ["Gemini 2.0 Flash", "DeepSeek Chat"];
 
@@ -109,6 +110,7 @@ export function ChatInterface() {
   const [due, setDue] = useState<DueReview[]>([]);
   const [weeklyTopics, setWeeklyTopics] = useState<WeeklyTopic[]>([]);
   const [currentWeek, setCurrentWeek] = useState<number>(0);
+  const [showStudyNote, setShowStudyNote] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -216,20 +218,82 @@ export function ChatInterface() {
   };
 
   function downloadMarkdown() {
-    const lines = [`# TutorIA Física\n\n**Pergunta:** ${question}\n`];
+    const now = new Date();
+    const dateISO   = now.toISOString().slice(0, 10);
+    const dateStamp = now.toISOString().slice(0, 19).replace(/[-:T]/g, "").slice(0, 15);
+    const primaryTopic = weeklyTopics[0]?.tema ?? due[0]?.topic ?? "";
+    const primaryDisc  = weeklyTopics[0]?.disciplina_codigo ?? "";
+    const respSec = responseTime > 0 ? (responseTime / 1000).toFixed(1) : "";
+    const titleShort = question.slice(0, 60).replace(/\n/g, " ");
+    const tags = ["fisica", "ufsm", primaryDisc, primaryTopic]
+      .filter(Boolean).map(t => t.toLowerCase().replace(/\s+/g, "-")).join(", ");
+
+    const lines: string[] = [
+      "---",
+      `title: "${titleShort}"`,
+      `date: "${dateISO}"`,
+      `student: "${studentEmail ?? "visitante"}"`,
+      `session_id: "${sessionId ?? ""}"`,
+      `model: "${model}"`,
+      ...(respSec ? [`response_time_s: ${respSec}`] : []),
+      ...(currentWeek > 0 ? [`week: ${currentWeek}`] : []),
+      ...(primaryDisc  ? [`discipline: "${primaryDisc}"`] : []),
+      ...(primaryTopic ? [`topic: "${primaryTopic}"`] : []),
+      `tags: [${tags}]`,
+      "---",
+      "",
+      "# 📚 Nota de Estudo — TutorIA Física UFSM",
+      "",
+      `> **Data:** ${now.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}${currentWeek > 0 ? ` · Semana ${currentWeek} do semestre` : ""} · Modelo: ${model}${respSec ? ` · ⏱ ${respSec}s` : ""}`,
+      "",
+      "---",
+      "",
+      "## ❓ Pergunta",
+      "",
+      `> ${question.replace(/\n/g, "\n> ")}`,
+      "",
+      "---",
+    ];
+
+    const AGENT_ICONS: Record<string, string> = {
+      "Intérprete": "🔵", "Solucionador": "🟢",
+      "Visualizador": "🟠", "Curador": "🟣", "Avaliador": "🔴",
+    };
     for (const a of agents) {
-      lines.push(`\n## ${a.agent_name} (${a.dimension})\n\n${a.content}`);
+      const icon = AGENT_ICONS[a.agent_name] ?? "⚙️";
+      lines.push(`\n## ${icon} ${a.agent_name} — ${a.dimension}\n`);
+      lines.push(a.content);
+      lines.push("\n---");
     }
-    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const el = document.createElement('a');
-    el.href = url;
-    el.download = `tutoria_${Date.now()}.md`;
+
+    if (due.length > 0) {
+      lines.push("\n## 🔄 Para revisar (SM-2)\n");
+      for (const d of due.slice(0, 8)) {
+        const pct = Math.round(d.mastery_level * 100);
+        lines.push(`- **${d.topic}** — ${pct}% de domínio`);
+      }
+    }
+
+    if (weeklyTopics.length > 0) {
+      lines.push(`\n## 📅 Semana ${currentWeek} do semestre UFSM\n`);
+      for (const t of weeklyTopics) {
+        const status = t.status === "mastered" ? "✓ dominado"
+          : t.status === "developing" ? `${Math.round(t.mastery_level * 100)}%`
+          : "novo";
+        lines.push(`- **${t.disciplina_codigo}**: ${t.tema} _(${status})_`);
+      }
+    }
+
+    lines.push(`\n---\n_Gerado por TutorIA Física UFSM · Sessão \`${sessionId ?? "—"}\`_\n`);
+
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url  = URL.createObjectURL(blob);
+    const el   = document.createElement("a");
+    el.href    = url;
+    el.download = `tutoria_${dateStamp}.md`;
     el.click();
     URL.revokeObjectURL(url);
   }
-
-  function printPDF() { window.print(); }
 
   function requestSend() {
     if (!question.trim() || loading) return;
@@ -714,20 +778,43 @@ export function ChatInterface() {
                     )}
                     {!loading && (
                       <div className="ml-auto flex gap-1.5">
-                        <button
-                          onClick={downloadMarkdown}
-                          className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium transition-all border border-stone-200"
-                          title="Download as Markdown"
-                        >
-                          📄 .md
-                        </button>
-                        <button
-                          onClick={printPDF}
-                          className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium transition-all border border-stone-200"
-                          title="Print as PDF"
-                        >
-                          🖨️ PDF
-                        </button>
+                        {studentEmail ? (
+                          <>
+                            <button
+                              onClick={downloadMarkdown}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium transition-all border border-stone-200"
+                              title="Baixar como Markdown (compatível com Obsidian)"
+                            >
+                              📄 .md
+                            </button>
+                            <button
+                              onClick={() => setShowStudyNote(true)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-sm"
+                              title="Ver e imprimir nota de estudo"
+                            >
+                              🖨️ PDF
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => router.push("/login")}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-100 text-stone-400 text-xs font-medium border border-stone-200 cursor-pointer hover:bg-stone-200 transition-all"
+                              title="Entre para exportar"
+                            >
+                              <Lock size={11} />
+                              📄 .md
+                            </button>
+                            <button
+                              onClick={() => router.push("/login")}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-100 text-stone-400 text-xs font-medium border border-stone-200 cursor-pointer hover:bg-stone-200 transition-all"
+                              title="Entre para exportar"
+                            >
+                              <Lock size={11} />
+                              🖨️ PDF
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -855,6 +942,22 @@ export function ChatInterface() {
         </div>
 
       </main>
+
+      {/* Study Note Modal (PDF apostila) */}
+      {showStudyNote && studentEmail && (
+        <StudyNoteModal
+          question={question}
+          agents={agents}
+          sessionId={sessionId}
+          model={model}
+          responseTimeMs={responseTime}
+          due={due}
+          weeklyTopics={weeklyTopics}
+          currentWeek={currentWeek}
+          studentEmail={studentEmail}
+          onClose={() => setShowStudyNote(false)}
+        />
+      )}
     </div>
   );
 }
