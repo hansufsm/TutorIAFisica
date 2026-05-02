@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { AgentOutput, reportBrokenLink } from "@/lib/api";
+import { AgentOutput, reportBrokenLink, submitFeedback } from "@/lib/api";
 
 // Convert TeX-style delimiters (\[...\] and \(...\)) to remark-math's $...$ syntax
 function normalizeLatex(content: string): string {
@@ -26,17 +26,23 @@ export function AgentPanel({
   streaming,
   sessionId,
   studentEmail,
+  topic,
 }: {
   agent: AgentOutput;
   streaming?: boolean;
   sessionId?: string | null;
   studentEmail?: string;
+  topic?: string;
 }) {
   const [showReport, setShowReport] = useState(false);
   const [url, setUrl] = useState("");
   const [note, setNote] = useState("");
   const [sent, setSent] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
+
+  // SM-2 quiz feedback (only for Avaliador)
+  const [quizAnswer, setQuizAnswer] = useState<"correct" | "incorrect" | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
 
   const config = AGENT_COLORS[agent.agent_name] || { icon: "⚙️", dotColor: "bg-stone-400" };
 
@@ -60,6 +66,25 @@ export function AgentPanel({
       console.error("Failed to report link:", err);
     } finally {
       setReportLoading(false);
+    }
+  };
+
+  const handleQuizFeedback = async (correct: boolean) => {
+    if (!studentEmail || quizAnswer || quizLoading) return;
+    setQuizLoading(true);
+    try {
+      await submitFeedback(
+        studentEmail,
+        sessionId ?? `session_${Date.now()}`,
+        topic ?? "física",
+        correct,
+        correct ? 4 : 2,
+      );
+      setQuizAnswer(correct ? "correct" : "incorrect");
+    } catch (err) {
+      console.error("Failed to submit quiz feedback:", err);
+    } finally {
+      setQuizLoading(false);
     }
   };
 
@@ -99,6 +124,39 @@ export function AgentPanel({
           {normalizeLatex(agent.content)}
         </ReactMarkdown>
       </div>
+
+      {/* SM-2 Quiz Feedback — only for Avaliador */}
+      {agent.agent_name === "Avaliador" && !streaming && (
+        <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+          {quizAnswer ? (
+            <p className={`text-xs font-medium ${quizAnswer === "correct" ? "text-emerald-600" : "text-amber-600"}`}>
+              {quizAnswer === "correct"
+                ? "✅ Ótimo! Progresso registrado."
+                : "📝 Anotado — revisaremos este conceito em breve."}
+            </p>
+          ) : (
+            <div>
+              <p className="text-xs text-stone-500 mb-2">Você conseguiu responder ao desafio?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleQuizFeedback(true)}
+                  disabled={quizLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-medium transition disabled:opacity-40"
+                >
+                  ✅ Acertei
+                </button>
+                <button
+                  onClick={() => handleQuizFeedback(false)}
+                  disabled={quizLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 text-xs font-medium transition disabled:opacity-40"
+                >
+                  ❌ Errei
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Report Broken Link */}
       <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--border)" }}>

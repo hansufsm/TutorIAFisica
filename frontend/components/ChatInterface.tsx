@@ -1,9 +1,11 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { AgentPanel } from "./AgentPanel";
 import { VoiceInput } from "./VoiceInput";
 import { askTutorStream, fetchModels, AgentOutput, DueReview } from "@/lib/api";
-import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Plus, MessageSquare, BookOpen, Settings, Send, PanelLeftClose, PanelLeftOpen, Zap, LogOut } from "lucide-react";
 
 const MODELS_FALLBACK = ["Gemini 2.0 Flash", "DeepSeek Chat"];
 
@@ -93,6 +95,8 @@ function loadTimerEstimate(model: string): number {
 }
 
 export function ChatInterface() {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const router = useRouter();
   const [question, setQuestion] = useState("");
   const [agents, setAgents] = useState<AgentOutput[]>([]);
   const [loading, setLoading] = useState(false);
@@ -247,7 +251,7 @@ export function ChatInterface() {
     setFactIndex(Math.floor(Math.random() * PHYSICS_FACTS.length));
 
     await askTutorStream(
-      { question, model_name: usedModel, student_email: "aluno@ufsm.br", quick_mode: quickMode },
+      { question, model_name: usedModel, student_email: user?.email ?? "aluno@ufsm.br", quick_mode: quickMode },
 
       // onToken — append token to agent's partial content
       (agentName, token, color, dimension) => {
@@ -303,7 +307,7 @@ export function ChatInterface() {
 
       ctrl.signal,
     );
-  }, [question, quickMode]);
+  }, [question, quickMode, user]);
 
   async function confirmAndSubmit() {
     setShowConfirm(false);
@@ -315,6 +319,23 @@ export function ChatInterface() {
   const pipelineActive = loading
     ? (agentsPipelineOrder.find((n) => !completedAgentNames.has(n) || n === streamingAgent) ?? null)
     : null;
+
+  // Auth gate: redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center" style={{ background: "var(--bg-main)" }}>
+        <div className="w-6 h-6 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  const studentEmail = user.email ?? "aluno@ufsm.br";
 
   return (
     <div className="flex h-screen" style={{ background: "var(--bg-main)" }}>
@@ -379,6 +400,18 @@ export function ChatInterface() {
             </select>
             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none text-xs">▾</span>
           </div>
+        </div>
+
+        {/* User Info + Sign Out */}
+        <div className={`border-t pt-3 mt-3 ${!sidebarOpen ? "hidden" : ""}`} style={{ borderColor: "var(--border)" }}>
+          <p className="text-xs text-stone-400 truncate mb-1.5" title={studentEmail}>{studentEmail}</p>
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-700 text-xs transition"
+          >
+            <LogOut size={13} />
+            Sair
+          </button>
         </div>
       </aside>
 
@@ -654,7 +687,8 @@ export function ChatInterface() {
                         agent={agents.find((a) => a.agent_name === activeTab)!}
                         streaming={streamingAgent === activeTab}
                         sessionId={sessionId}
-                        studentEmail="aluno@ufsm.br"
+                        studentEmail={studentEmail}
+                        topic={question.slice(0, 60).trim()}
                       />
                     </div>
                   )}
