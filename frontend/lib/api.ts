@@ -1,20 +1,17 @@
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function sanitizeError(error: string): string {
-  // Remove verbose stack traces, HTML, and technical details
   let msg = error
-    .replace(/<[^>]*>/g, "") // Remove HTML tags
-    .split("\n")[0] // Get first line only
+    .replace(/<[^>]*>/g, "")
+    .split("\n")[0]
     .trim();
 
-  // Extract meaningful error from common patterns
   if (msg.includes("429") || msg.includes("rate")) return "Limite de requisições atingido. Tente novamente em alguns segundos.";
   if (msg.includes("401") || msg.includes("authentication")) return "Falha de autenticação na API.";
   if (msg.includes("500")) return "Erro do servidor. Tente novamente.";
   if (msg.includes("DeepSeek") || msg.includes("deepseek")) return "Erro ao conectar com DeepSeek. Usando fallback...";
   if (msg.includes("Gemini") || msg.includes("gemini")) return "Erro ao conectar com Gemini. Tente outro modelo.";
 
-  // Return message if it's reasonable length, otherwise generic message
   return msg.length > 150 ? "Erro ao processar sua pergunta. Tente novamente." : msg;
 }
 
@@ -47,19 +44,39 @@ export interface TutorRequest {
   model_name?: string;
   image_base64?: string;
   image_media_type?: string;
+  quick_mode?: boolean;
 }
 
+/**
+ * SSE streaming request.
+ * onToken   — called for each token during agent generation (agent_name, token, color, dimension)
+ * onAgent   — called when an agent completes with its full content
+ * onDone    — called once when the pipeline finishes
+ * onError   — called on network or parse errors
+ * signal    — optional AbortSignal to cancel mid-stream
+ */
 export async function askTutorStream(
   req: TutorRequest,
+  onToken: (agentName: string, token: string, color: string, dimension: string) => void,
   onAgent: (a: AgentOutput) => void,
   onDone: (due: DueReview[], sessionId?: string, responseTimeMs?: number) => void,
-  onError: (e: string) => void
+  onError: (e: string) => void,
+  signal?: AbortSignal
 ): Promise<void> {
-  const res = await fetch(`${API}/tutor/ask/stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API}/tutor/ask/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+      signal,
+    });
+  } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === "AbortError") return;
+    onError("Não foi possível conectar ao servidor.");
+    return;
+  }
+
   if (!res.ok) {
     const errorText = await res.text();
     onError(sanitizeError(errorText));
@@ -68,24 +85,42 @@ export async function askTutorStream(
 
   const reader = res.body!.getReader();
   const dec = new TextDecoder();
+  let buffer = "";
 
   while (true) {
-    const { done, value } = await reader.read();
+    let done: boolean;
+    let value: Uint8Array | undefined;
+    try {
+      ({ done, value } = await reader.read());
+    } catch {
+      return; // aborted
+    }
     if (done) break;
-    for (const line of dec.decode(value).split("\n")) {
+
+    buffer += dec.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
       try {
         const data = JSON.parse(line.slice(6));
+
         if (data.is_final) {
           onDone(data.due_for_review ?? [], data.session_id, data.response_time_ms);
-          break;
+          return;
         }
         if (data.error) {
           onError(sanitizeError(data.error));
-          break;
+          return;
         }
-        onAgent(data as AgentOutput);
-      } catch (e) {
+
+        if (data.type === "token") {
+          onToken(data.agent_name, data.token, data.color, data.dimension);
+        } else if (data.type === "agent_complete") {
+          onAgent(data as AgentOutput);
+        }
+      } catch {
         // skip malformed lines
       }
     }
@@ -99,7 +134,7 @@ export async function fetchModels(): Promise<string[]> {
     const data: Record<string, unknown> = await res.json();
     return Object.keys(data);
   } catch {
-    return ["DeepSeek Chat", "Gemini 2.0 Flash"];
+    return ["Gemini 2.0 Flash", "DeepSeek Chat"];
   }
 }
 

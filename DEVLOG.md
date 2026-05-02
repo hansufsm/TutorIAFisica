@@ -4,6 +4,87 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-05-02 — Performance & UX: Token Streaming + Agentes Paralelos + 4 Melhorias de UX
+
+**Commits:** pendente (branch `claude/investigate-api-slowness-7lFm3`)
+
+### O que foi feito
+
+#### 1. Token Streaming — `src/core.py`
+- ✅ `TutorIAAgent.ask_stream()` — novo método generator que usa `litellm.completion(stream=True)` e faz yield de tokens individuais; fallback silencioso para `_ask_manus()` (não suporta streaming)
+- ✅ `PhysicsOrchestrator._build_preferred_order()` — extrai lógica de ordem de modelos para reuso por ambos os caminhos (streaming e não-streaming)
+- ✅ `PhysicsOrchestrator._attempt_model_call_stream()` — generator que tenta o modelo preferido em stream; se falhar antes de qualquer token, tenta o próximo; se falhar com tokens parciais, entrega o que foi coletado; yields `("token", str)` e `("done", (content, model_name, is_fallback))`
+- ✅ `process_streaming()` reescrito — novo protocolo de eventos em dicts:
+  - `{"type": "token", "agent_name": str, "token": str}`
+  - `{"type": "agent_complete", "agent_name": str, "content": str, "model_used": str|None, "is_fallback": bool}`
+
+#### 2. Agentes Paralelos — `src/core.py`
+- ✅ Fases de execução reestruturadas:
+  - **Fase 1:** Intérprete — token-streamed (resultado necessário para contexto das demais)
+  - **Fase 2:** Solucionador + Visualizador + Curador — `ThreadPoolExecutor(max_workers=3)` + `as_completed()` (independentes entre si)
+  - **Fase 3:** Avaliador — token-streamed (usa resultado do Intérprete para misconceptions/SM-2)
+- ✅ `imports` adicionados: `from concurrent.futures import ThreadPoolExecutor, as_completed`
+- ✅ Speedup estimado: pipeline sequencial ~60-90 s → paralelo ~25-40 s (3 agentes em paralelo na fase mais pesada)
+
+#### 3. Modo Rápido (Quick Mode) — Full Stack
+- ✅ `quick_mode: bool = False` adicionado a `TutorRequest` em `backend/schemas/request.py`
+- ✅ `process_streaming()` suporta `quick_mode=True`: executa apenas Intérprete + Solucionador e retorna (reduz para ~10-15 s)
+- ✅ Botão ⚡ "Rápido" na interface com toggle visual (âmbar quando ativo)
+- ✅ Toggle também disponível no modal de confirmação de envio
+
+#### 4. Endpoint SSE Atualizado — `backend/routers/tutor.py`
+- ✅ Removido fallback para `process()` não-streaming e `FIELD_MAP` (código morto)
+- ✅ Removida rota `POST /tutor/ask` (síncrona, nunca usada pelo frontend)
+- ✅ Removidos imports: `TutorResponse`, `AgentOutput`, `FIELD_MAP`
+- ✅ Generator `generate()` lida com novos eventos dict: repassa `type:"token"` ao frontend enriquecido com `color`/`dimension`; emite `type:"agent_complete"` quando agente completa
+
+#### 5. API Client Atualizado — `frontend/lib/api.ts`
+- ✅ `TutorRequest` agora inclui `quick_mode?: boolean`
+- ✅ `askTutorStream()` nova assinatura: adicionados `onToken` callback e `signal?: AbortSignal`
+- ✅ `onToken(agentName, token, color, dimension)` — callback chamado a cada token durante geração
+- ✅ `onAgent(agent)` — chamado quando agente completa com conteúdo final
+- ✅ `AbortController` suportado — `fetch()` recebe `signal` para cancelamento mid-stream
+- ✅ Buffer de lines (`buffer += decode(...)`) corrigido para evitar split de linha SSE no meio
+
+#### 6. Curiosidades de Física — `frontend/components/ChatInterface.tsx`
+- ✅ Array `PHYSICS_FACTS` com 20 fatos em português (leis, constantes, escalas do mundo físico)
+- ✅ Fato rotaciona a cada 8 s durante loading via `setInterval`; fato inicial aleatório a cada nova pergunta
+- ✅ Exibido acima do cycling de fontes hierárquicas, com ícone 💡
+
+#### 7. Cancelamento e Troca de Modelo — `frontend/components/ChatInterface.tsx`
+- ✅ `abortRef = useRef<AbortController>()` — armazena controller ativo para cancelamento
+- ✅ Botão "✕ Cancelar" aparece após 15 s de loading
+- ✅ Botão "↻ Trocar modelo" aparece junto, escolhe o próximo modelo na lista e re-submete automaticamente
+- ✅ `cancelTimerRef` limpa o timeout corretamente em cleanup do useEffect
+
+#### 8. Calibração do Timer por localStorage — `frontend/components/ChatInterface.tsx`
+- ✅ `saveTimerSample(model, ms)` — salva tempo de resposta em `localStorage` sob chave `tutoria_timer_<model>`; mantém últimas 10 amostras (FIFO)
+- ✅ `loadTimerEstimate(model)` — lê amostras, calcula mediana, multiplica por 1.2, clampa entre 30 e 180 s
+- ✅ No primeiro uso (sem histórico), usa `DEFAULT_TIMER = 120 s`
+- ✅ Timer inicializa com estimativa calibrada ao submeter pergunta
+
+#### 9. Token Streaming Visual — `frontend/components/ChatInterface.tsx`
+- ✅ `onToken` atualiza conteúdo do agente em tempo real via `setAgents(prev => ...)` com update imutável
+- ✅ Aba do agente abre automaticamente quando o primeiro token chega
+- ✅ Indicador "…" na aba durante streaming
+- ✅ `onAgent` (agent_complete) substitui conteúdo parcial pelo final — evita duplicação
+- ✅ Foco retorna para "Intérprete" ao concluir toda a resposta (via `setActiveTab(AGENTS_ORDER[0])` no `onDone`)
+
+### Decisões/Desvios
+- `_attempt_model_call_stream()` não aborta mid-stream se o modelo falhar depois de tokens emitidos — comportamento intencional (melhor conteúdo parcial do que erro)
+- `ThreadPoolExecutor(max_workers=3)` é síncrono; roda dentro do generator síncrono de `process_streaming()` — FastAPI lida corretamente com isso via threadpool do `StreamingResponse`
+- Quick mode não inclui Visualizador nem Curador — trade-off intencional para resposta < 15 s
+- Timer clampa no mínimo 30 s para evitar ansiedade em casos de rede lenta
+
+### Status
+🟢 **COMPLETO** — Implementado; aguardando push e merge em `main`
+
+### Próximo Passo
+- Deploy no Render.com (backend) e Vercel (frontend)
+- Monitorar logs para validar que o pipeline paralelo não causa problemas de race condition na escrita de `state`
+
+---
+
 ## 📅 2026-05-02 — Investigação de Lentidão da API + UX do Seletor de Modelos
 
 **Commits:** `358a917` · `1f4c653` · `7d5bdba` · `52edf77`
