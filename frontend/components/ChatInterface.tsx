@@ -117,6 +117,9 @@ export function ChatInterface() {
   const [showCancel, setShowCancel] = useState(false);
   const [factIndex, setFactIndex] = useState(0);
 
+  // Guest mode: email is undefined when not authenticated — SM-2 and portfolio won't persist
+  const studentEmail = user?.email ?? undefined;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const timerMaxRef = useRef<number>(DEFAULT_TIMER);
@@ -251,7 +254,7 @@ export function ChatInterface() {
     setFactIndex(Math.floor(Math.random() * PHYSICS_FACTS.length));
 
     await askTutorStream(
-      { question, model_name: usedModel, student_email: user?.email ?? "aluno@ufsm.br", quick_mode: quickMode },
+      { question, model_name: usedModel, student_email: studentEmail, quick_mode: quickMode },
 
       // onToken — append token to agent's partial content
       (agentName, token, color, dimension) => {
@@ -307,7 +310,7 @@ export function ChatInterface() {
 
       ctrl.signal,
     );
-  }, [question, quickMode, user]);
+  }, [question, quickMode, studentEmail]);
 
   async function confirmAndSubmit() {
     setShowConfirm(false);
@@ -319,23 +322,6 @@ export function ChatInterface() {
   const pipelineActive = loading
     ? (agentsPipelineOrder.find((n) => !completedAgentNames.has(n) || n === streamingAgent) ?? null)
     : null;
-
-  // Auth gate: redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
-    }
-  }, [authLoading, user, router]);
-
-  if (authLoading || !user) {
-    return (
-      <div className="flex h-screen items-center justify-center" style={{ background: "var(--bg-main)" }}>
-        <div className="w-6 h-6 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
-  const studentEmail = user.email ?? "aluno@ufsm.br";
 
   return (
     <div className="flex h-screen" style={{ background: "var(--bg-main)" }}>
@@ -402,16 +388,30 @@ export function ChatInterface() {
           </div>
         </div>
 
-        {/* User Info + Sign Out */}
+        {/* User Info / Login CTA */}
         <div className={`border-t pt-3 mt-3 ${!sidebarOpen ? "hidden" : ""}`} style={{ borderColor: "var(--border)" }}>
-          <p className="text-xs text-stone-400 truncate mb-1.5" title={studentEmail}>{studentEmail}</p>
-          <button
-            onClick={signOut}
-            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-700 text-xs transition"
-          >
-            <LogOut size={13} />
-            Sair
-          </button>
+          {user ? (
+            <>
+              <p className="text-xs text-stone-400 truncate mb-1.5" title={user.email}>{user.email}</p>
+              <button
+                onClick={signOut}
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-700 text-xs transition"
+              >
+                <LogOut size={13} />
+                Sair
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-stone-400 mb-2">Modo visitante — progresso não salvo.</p>
+              <button
+                onClick={() => router.push("/login")}
+                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition"
+              >
+                Entrar para salvar progresso
+              </button>
+            </>
+          )}
         </div>
       </aside>
 
