@@ -10,6 +10,9 @@ from models.student_model import StudentModel
 import pandas as pd
 import plotly.express as px
 
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="TutorIAFisica - Multi-Model", layout="wide", page_icon="🌌")
+
 # --- STATUS DAS APIs ---
 STATUS_ICONS = {
     "ok":            "🟢",
@@ -17,23 +20,22 @@ STATUS_ICONS = {
     "rate_limit":    "⚠️",
     "auth_error":    "❌",
     "no_connection": "🔴",
+    "untested":      "🔵",
 }
 
-@st.cache_data(ttl=300, show_spinner=False)
-def check_api_status(model_display_name: str, runtime_keys: tuple) -> str:
-    runtime_keys_dict = dict(runtime_keys)
+def get_key_status(model_display_name: str) -> str:
+    """Verificação instantânea: só checa presença da chave no .env."""
     key_name = Config.get_provider_key_name(model_display_name)
-    if key_name:
-        api_key = runtime_keys_dict.get(key_name) or os.getenv(key_name)
-        if not api_key:
-            return "no_key"
-    else:
-        api_key = None
+    if not key_name:
+        return "ok"
+    return "ok" if os.getenv(key_name) else "no_key"
 
+@st.cache_data(ttl=120, show_spinner=False)
+def probe_api_status(model_display_name: str, api_key: str) -> str:
+    """Teste real de conectividade (cacheado 2 min). Chamado só sob demanda."""
     model_id = Config.get_model_id(model_display_name)
     if model_id.startswith("manus/"):
         return "ok"
-
     try:
         litellm.completion(
             model=model_id,
@@ -50,8 +52,6 @@ def check_api_status(model_display_name: str, runtime_keys: tuple) -> str:
     except Exception:
         return "no_connection"
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="TutorIAFisica - Multi-Model", layout="wide", page_icon="🌌")
 
 # --- ESTILIZAÇÃO CSS ---
 # Revisado para garantir a correta delimitação da string multi-linha e clareza.
@@ -310,24 +310,16 @@ def main():
         st.markdown("## ⚙️ Configurações de IA")
 
         # Seleção de Modelo
-        # Coleta chaves runtime já inseridas (para probing de status da API)
-        _runtime_keys_for_probe: list[tuple[str, str]] = []
-        for _mn in Config.AVAILABLE_MODELS:
-            _kn = Config.get_provider_key_name(_mn)
-            if _kn and not os.getenv(_kn):
-                _val = st.session_state.get(f"runtime_key_{_kn}", "")
-                if _val:
-                    _runtime_keys_for_probe.append((_kn, _val))
-        runtime_keys_tuple = tuple(_runtime_keys_for_probe)
-
         available_model_names = list(Config.AVAILABLE_MODELS.keys())
         default_model_name = Config.DEFAULT_MODEL_DISPLAY_NAME
 
-        # Constrói labels com ícones de status
+        # Status dos modelos: verificação instantânea (presença de chave)
+        # sobrescrita por probe real se o estudante clicou em "Testar"
+        api_statuses = st.session_state.get("api_statuses", {})
         label_to_name: dict[str, str] = {}
         labeled_options: list[str] = []
         for _name in available_model_names:
-            _status = check_api_status(_name, runtime_keys_tuple)
+            _status = api_statuses.get(_name) or get_key_status(_name)
             _icon = STATUS_ICONS.get(_status, "🔴")
             _label = f"{_icon} {_name}"
             label_to_name[_label] = _name
@@ -349,8 +341,22 @@ def main():
         # Extrai o nome limpo (sem ícone) para uso interno
         selected_model_display_name = label_to_name[selected_label]
 
-        # Legenda dos ícones
-        st.caption("🟢 ativo · 🔑 sem chave · ⚠️ sem créditos · ❌ chave inválida · 🔴 sem conexão")
+        # Legenda + botão de teste real sob demanda
+        col_leg, col_btn = st.columns([3, 1])
+        with col_leg:
+            st.caption("🟢 ativo · 🔑 sem chave · ⚠️ sem créditos · ❌ inválida · 🔴 sem conexão · 🔵 não testado")
+        with col_btn:
+            if st.button("🔄", help="Testar conectividade de todas as APIs agora"):
+                statuses = {}
+                for _name in available_model_names:
+                    _kn = Config.get_provider_key_name(_name)
+                    _key = os.getenv(_kn) if _kn else None
+                    if not _key:
+                        statuses[_name] = "no_key"
+                    else:
+                        statuses[_name] = probe_api_status(_name, _key)
+                st.session_state.api_statuses = statuses
+                st.rerun()
 
         # Persistência da escolha do modelo na sessão
         if "selected_model_display_name" not in st.session_state:
