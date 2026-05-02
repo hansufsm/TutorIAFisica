@@ -4,6 +4,48 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-05-02 — Investigação de Lentidão da API + UX do Seletor de Modelos
+
+**Commits:** `358a917` · `1f4c653` · `7d5bdba` · `52edf77`
+
+### O que foi feito
+
+#### Diagnóstico e fix de lentidão (src/core.py + src/config.py)
+- ✅ **Causa raiz identificada:** `litellm.completion()` sem `timeout` → padrão de 600 s (10 min). Pipeline com 5 agentes sequenciais poderia travar por até 50 min
+- ✅ Adicionado `timeout=45` em `TutorIAAgent.ask()` (`core.py:263`)
+- ✅ `litellm.Timeout` adicionado explicitamente ao bloco `except` do fallback loop para acionar troca de modelo de forma limpa
+- ✅ Modelo padrão alterado de `"DeepSeek Chat"` → `"Gemini 2.0 Flash"` (menor latência estrutural)
+- ✅ `AVAILABLE_MODELS` reordenado: Gemini primeiro, DeepSeek segundo — afeta a ordem do dropdown
+
+#### Transparência do provider nas respostas (src/config.py + src/app.py)
+- ✅ Novo método `Config.get_provider_label()`: mapeia modelo → empresa (Google, DeepSeek, OpenAI…)
+- ✅ Banner pós-resposta agora exibe: `🤖 Respondido por Gemini 2.0 Flash · Google · gemini/gemini-2.0-flash`
+- ✅ Fallback também mostra provider: `⚠️ Fallback ativo — Respondido por DeepSeek Chat · DeepSeek · deepseek/deepseek-chat`
+
+#### Ícones de status da API no seletor (src/app.py)
+- ✅ `check_api_status()` — função cacheada (`@st.cache_data(ttl=300)`) que faz chamada de teste leve (`max_tokens=1, timeout=10`) por modelo
+- ✅ Conjunto de ícones: 🟢 ativo · 🔑 sem chave · ⚠️ sem créditos · ❌ chave inválida · 🔴 sem conexão
+- ✅ Selectbox exibe labels prefixados com ícone; nome limpo extraído via `label_to_name` dict para manter compatibilidade com todo código downstream
+- ✅ Caption abaixo do seletor explica a legenda
+- ✅ Manus tratado como caso especial (API proprietária de polling — só verifica presença da chave)
+
+#### UX do campo de entrada e abas (src/app.py)
+- ✅ Placeholder reescrito com contexto didático completo: `"Uma bola de 2 kg é solta do repouso a 4,3 m de altura na superfície da Lua (g = 1,62 m/s²). Quanto tempo leva para atingir o solo?"`
+- ✅ Foco automático na aba "🧩 Diálogo Socrático" ao receber nova resposta — injeção JS via `components.html()` com `window.parent.document.querySelectorAll('[role="tab"]')[0].click()`; ativado uma vez por resposta via `session_state.new_result`
+
+### Decisões/Desvios
+- Timeout de 45 s escolhido como equilíbrio entre latência aceitável e falha rápida para fallback; provedores em boa condição respondem em < 10 s
+- `check_api_status()` usa TTL=300 s (5 min) para não onerar o carregamento da sidebar a cada rerender; cache invalidado automaticamente quando chave runtime muda
+- JS de foco usa `setTimeout(150ms)` para aguardar DOM do Streamlit estabilizar antes do click
+
+### Status
+🟢 **COMPLETO** — Branch `claude/investigate-api-slowness-7lFm3`, pronto para merge em `main`
+
+### Próximo Passo
+Merge do branch e verificação em produção (Render.com + Streamlit local)
+
+---
+
 ## 📅 2026-04-27 — TODOs Alta + Média Prioridade + Fix Seletor de Modelos
 
 **Commits:** `19cbaf6` · `f42ac10` · `8290aa2`
@@ -609,8 +651,9 @@ Cron-job.org falhou com 401/400 (problemas de autenticação). Vercel tem cron j
 
 | Item | Esforço | Impacto | Status |
 |---|---|---|---|
-| **Deploy frontend no Vercel** | 10 min (manual) | 🔴 **CRÍTICO** | ⏳ |
-| Testar cron job após deploy | 5 min | Alto | ⏳ |
+| Merge `claude/investigate-api-slowness-7lFm3` → `main` | 5 min | 🔴 **CRÍTICO** | ⏳ |
+| Verificar ícones de status em produção (Render + Streamlit) | 10 min | Alto | ⏳ |
+| **Deploy frontend no Vercel** | 10 min (manual) | Alto | ⏳ |
 | Testar SSE streaming em produção | 10 min | Alto | ⏳ |
 | Misconception detection | 1h | Médio | ⏳ |
 | StudentModel local ↔ Supabase unificação | 2h | Médio | ⏳ |
@@ -626,4 +669,4 @@ Cron-job.org falhou com 401/400 (problemas de autenticação). Vercel tem cron j
 
 ---
 
-*Última atualização: 2026-04-27 — Após Etapa 4 frontend*
+*Última atualização: 2026-05-02 — Investigação de lentidão + UX do seletor*
