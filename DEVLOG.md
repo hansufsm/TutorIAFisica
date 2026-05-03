@@ -4,6 +4,53 @@ Histórico de desenvolvimento, organized by session and major milestones.
 
 ---
 
+## 📅 2026-05-03 — UX: Fixes de Auth, Export e Reordenação de Painel
+
+**Commits:** `fbe967d` · `cd986b8` · `12df707` · `0de2873` · `cdaf3eb`
+
+### O que foi feito
+
+#### Fix: erro "Failed to fetch" no login (`AuthContext.tsx`)
+- ✅ Detecta `NEXT_PUBLIC_SUPABASE_URL` com valor placeholder/vazio antes de chamar o SDK
+- ✅ Envolve `signInWithOtp` em `try/catch` — captura erros de rede e exibe mensagem em PT-BR em vez de "Failed to fetch" crua
+- ✅ **Causa real**: variáveis de ambiente não configuradas no Vercel Dashboard
+
+#### Fix: botão de login sumia com sidebar colapsada (`ChatInterface.tsx`)
+- ✅ Sidebar expandida → comportamento anterior (texto + botão completo)
+- ✅ Sidebar colapsada (`w-16`) → ícone `LogIn` roxo (visitante) ou `LogOut` com tooltip de email (logado)
+- ✅ Remove `hidden` condicional que escondia o bloco inteiro no modo `w-16`
+
+#### Export liberado para visitantes (`ChatInterface.tsx` + `StudyNoteModal.tsx`)
+- ✅ Remove guest lock (ícone `Lock` + redirect) dos botões `.md` e `PDF`
+- ✅ `StudyNoteModal` recebe `studentEmail ?? "visitante"` — funciona sem autenticação
+- ✅ Remove guarda `showStudyNote && studentEmail` no render do modal
+
+#### Fix: botão "Imprimir / Salvar PDF" não exportava (`globals.css`)
+- ✅ **Causa raiz**: `display:none` em `body > *` escondia o elemento pai do modal — filhos não podem ser revelados com `display:revert`
+- ✅ **Fix**: `visibility:hidden` em `body *` + `visibility:visible` em `.study-note-print` — técnica correta para print CSS
+- ✅ `.study-note-print` fica `position:fixed; inset:0` durante impressão
+
+#### Números ordinais nos agentes do modal (`StudyNoteModal.tsx`)
+- ✅ `01.`, `02.`… na cor da borda do agente (azul/verde/laranja/roxo/vermelho), à esquerda do ícone
+- ✅ Remove número duplicado que estava à direita do cabeçalho
+
+#### Reordenação do painel de curiosidades (`ChatInterface.tsx`)
+- ✅ Ordem anterior: curiosidade → lista de fontes → cancelar
+- ✅ Ordem nova: **lista de fontes → curiosidade → cancelar**
+
+### Decisões/Desvios
+- Export sem login: decisão pedagógica — não criar fricção para salvar conteúdo de qualidade
+- Print CSS via `visibility` (não `display`) é o padrão universal para "imprimir só este elemento" — `display:none` no pai bloqueia toda a subárvore
+
+### Status
+🟢 **COMPLETO**
+
+### Próximo Passo
+- Configurar `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` no Vercel para ativar login real
+- Merge branch `claude/investigate-api-slowness-7lFm3` → `main`
+
+---
+
 ## 📅 2026-05-02 — Export de Nota de Estudo — Apostila Acumulada (PDF + Markdown)
 
 **Commits:** `a2b5674`
