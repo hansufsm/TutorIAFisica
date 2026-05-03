@@ -169,6 +169,9 @@ export function StudyNoteModal({
                   className="flex items-center gap-2.5 px-5 py-3"
                   style={{ backgroundColor: meta.bgColor }}
                 >
+                  <span className="font-mono font-bold text-sm tabular-nums" style={{ color: meta.borderColor }}>
+                    {String(i + 1).padStart(2, "0")}.
+                  </span>
                   <span className="text-base">{meta.icon}</span>
                   <div className="flex-1">
                     <span className="font-bold text-stone-900 text-sm">{agent.agent_name}</span>
@@ -176,7 +179,6 @@ export function StudyNoteModal({
                       {meta.label}
                     </span>
                   </div>
-                  <span className="text-xs text-stone-400 font-mono">{String(i + 1).padStart(2, "0")}</span>
                 </div>
 
                 {/* Section content */}
