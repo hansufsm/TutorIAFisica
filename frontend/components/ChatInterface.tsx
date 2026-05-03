@@ -802,43 +802,20 @@ export function ChatInterface() {
                     )}
                     {!loading && (
                       <div className="ml-auto flex gap-1.5">
-                        {studentEmail ? (
-                          <>
-                            <button
-                              onClick={downloadMarkdown}
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium transition-all border border-stone-200"
-                              title="Baixar como Markdown (compatível com Obsidian)"
-                            >
-                              📄 .md
-                            </button>
-                            <button
-                              onClick={() => setShowStudyNote(true)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-sm"
-                              title="Ver e imprimir nota de estudo"
-                            >
-                              🖨️ PDF
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => router.push("/login")}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-100 text-stone-400 text-xs font-medium border border-stone-200 cursor-pointer hover:bg-stone-200 transition-all"
-                              title="Entre para exportar"
-                            >
-                              <Lock size={11} />
-                              📄 .md
-                            </button>
-                            <button
-                              onClick={() => router.push("/login")}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-100 text-stone-400 text-xs font-medium border border-stone-200 cursor-pointer hover:bg-stone-200 transition-all"
-                              title="Entre para exportar"
-                            >
-                              <Lock size={11} />
-                              🖨️ PDF
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={downloadMarkdown}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-medium transition-all border border-stone-200"
+                          title="Baixar como Markdown (compatível com Obsidian)"
+                        >
+                          📄 .md
+                        </button>
+                        <button
+                          onClick={() => setShowStudyNote(true)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-sm"
+                          title="Ver e imprimir nota de estudo"
+                        >
+                          🖨️ PDF
+                        </button>
                       </div>
                     )}
                   </div>
@@ -968,7 +945,7 @@ export function ChatInterface() {
       </main>
 
       {/* Study Note Modal (PDF apostila) */}
-      {showStudyNote && studentEmail && (
+      {showStudyNote && (
         <StudyNoteModal
           question={question}
           agents={agents}
@@ -978,7 +955,7 @@ export function ChatInterface() {
           due={due}
           weeklyTopics={weeklyTopics}
           currentWeek={currentWeek}
-          studentEmail={studentEmail}
+          studentEmail={studentEmail ?? "visitante"}
           onClose={() => setShowStudyNote(false)}
         />
       )}
