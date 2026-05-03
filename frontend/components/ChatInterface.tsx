@@ -711,13 +711,6 @@ export function ChatInterface() {
                       })}
                     </div>
 
-                    {/* Physics fact */}
-                    <div className="border-t pt-3 mb-3" style={{ borderColor: "var(--border)" }}>
-                      <p className="text-xs text-stone-500 italic text-center px-2 leading-relaxed transition-all duration-700">
-                        💡 {PHYSICS_FACTS[factIndex]}
-                      </p>
-                    </div>
-
                     {/* Source cycling — only before first agent arrives */}
                     {!agents.length && (
                       <div className="border-t pt-3 space-y-0.5" style={{ borderColor: "var(--border)" }}>
@@ -749,6 +742,13 @@ export function ChatInterface() {
                         ))}
                       </div>
                     )}
+
+                    {/* Physics fact */}
+                    <div className="border-t pt-3 mb-3" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-xs text-stone-500 italic text-center px-2 leading-relaxed transition-all duration-700">
+                        💡 {PHYSICS_FACTS[factIndex]}
+                      </p>
+                    </div>
 
                     {/* Cancel / Switch model — appears after 15s */}
                     {showCancel && (
